@@ -484,13 +484,6 @@ PHP_FUNCTION(beanstalk_put)
 	}
 
 	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
-
-	if( !php_stream_write_string( pStream, pWBuf ))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
-		RETURN_FALSE;
-	}
-
 	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED );
 	efree( pWBuf );
 }
