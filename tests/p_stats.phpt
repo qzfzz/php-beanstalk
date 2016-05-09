@@ -4,11 +4,11 @@ Check for beanstalk presence
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-// echo "beanstalk extension is available\n";
-
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 
+$strStats = var_export( beanstalk_stats( $b ), true );
+var_dump( preg_match( "/array/", $strStats ));
 beanstalk_close( $b );
 /*
 	you can add regression tests for your extension here
@@ -19,7 +19,9 @@ beanstalk_close( $b );
   expected text are interpreted as failure
 
 	see php5/README.TESTING for further information on
-  writing regression tests
+  writing regression tests 				
+done
 */
 ?>
---EXPECT--
+--EXPECTF--
+int(1)

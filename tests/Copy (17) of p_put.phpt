@@ -4,7 +4,11 @@ Check for beanstalk presence
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-$b = beanstalk_open( "svn.huaer.dev" );
+$arrConfig = include __DIR__ . '/../include/config.inc';
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+
+beanstalk_close( $b );
+
 /*
 	you can add regression tests for your extension here
 
@@ -19,4 +23,3 @@ done
 */
 ?>
 --EXPECTF--
-resource(%d) of type (stream)

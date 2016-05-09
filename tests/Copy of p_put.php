@@ -1,15 +1,7 @@
---TEST--
-Check for beanstalk presence
---SKIPIF--
-<?php if (!extension_loaded("beanstalk")) print "skip"; ?>
---FILE--
 <?php 
-// echo "beanstalk extension is available\n";
-
-$arrConfig = include __DIR__ . '/../include/config.inc';
+$arrConfig = include(dir( __FILE__ ) . '/../include/config.inc'); 
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
-
-beanstalk_close( $b );
+var_dump( $b );
 /*
 	you can add regression tests for your extension here
 
@@ -19,7 +11,7 @@ beanstalk_close( $b );
   expected text are interpreted as failure
 
 	see php5/README.TESTING for further information on
-  writing regression tests
+  writing regression tests 				
+done
 */
 ?>
---EXPECT--
