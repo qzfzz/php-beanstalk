@@ -1,8 +1,0 @@
-beanstalk.lo: /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/beanstalk.c
-	$(LIBTOOL) --mode=compile $(CC)  -I. -I/Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS)  -c /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/beanstalk.c -o beanstalk.lo 
-$(phplibdir)/beanstalk.la: ./beanstalk.la
-	$(LIBTOOL) --mode=install cp ./beanstalk.la $(phplibdir)
-
-./beanstalk.la: $(shared_objects_beanstalk) $(BEANSTALK_SHARED_DEPENDENCIES)
-	$(LIBTOOL) --mode=link $(CC) $(COMMON_FLAGS) $(CFLAGS_CLEAN) $(EXTRA_CFLAGS) $(LDFLAGS) -o $@ -export-dynamic -avoid-version -prefer-pic -module -rpath $(phplibdir) $(EXTRA_LDFLAGS) $(shared_objects_beanstalk) $(BEANSTALK_SHARED_LIBADD)
-
