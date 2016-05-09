@@ -19,4 +19,5 @@ php7-beanstalk在稍后会放出
 6.    $make install
 ```
 
-已和问题 在查询状态等信息有时若同时进行多个查询则返回结果可能会不正常，导致这个的原因可能是beanstalkd服务器端的bug导致的，稍后我会检查一个beanstalkd的代码以排除bug
+已知问题 
+1. 在查询状态等信息有时若同时进行多个查询则返回结果可能会不正常，导致这个的原因可能是beanstalkd服务器端的bug导致的，稍后我会检查一个beanstalkd的代码以排除bug
