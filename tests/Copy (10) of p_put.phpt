@@ -4,10 +4,7 @@ Check for beanstalk presence
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-$b = beanstalk_open( "s1vn.huaer.dev" );
-var_dump( $b );
-
-// echo "done";
+$b = beanstalk_open( "svn.huaer.dev" );
 /*
 	you can add regression tests for your extension here
 
@@ -23,4 +20,3 @@ done
 ?>
 --EXPECTF--
 resource(%d) of type (stream)
-abc

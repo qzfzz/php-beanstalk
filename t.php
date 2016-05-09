@@ -2,7 +2,6 @@
 $t = microtime( true );
 
 $b = beanstalk_open( "svn.huaer.dev" );
-var_dump( BEANSTALK_TUBE_NOT_RETURN );
 //echo 'abc';
 //var_dump( beanstalk_stats( $b ));
 //for( $i = 0; $i < 100000; ++$i )
@@ -61,5 +60,5 @@ var_dump( beanstalk_statsJob( $b, $job['id'] ));
 //var_dump( beanstalk_pauseTube( $b, "tube-a", 10 )); 
 //var_dump( beanstalk_pauseTube( $b, "tube-a", 0 )); 
 //var_dump( beanstalk_kick( $b, 3000 ));
-beanstalk_close( $b );
+var_dump( beanstalk_close( $b ));
 echo microtime( true ) - $t, '<br>';

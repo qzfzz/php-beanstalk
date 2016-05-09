@@ -1,3 +1,4 @@
+<?php
 /*
   +----------------------------------------------------------------------+
   | PHP Version 5                                                        |
@@ -110,8 +111,6 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
 
 #define TUBE_RETURN 1
 #define TUBE_NOT_RETURN 0
-#define RETURN_WATCH_SIZE 1
-#define NOT_RETURN_WATCH_SIZE 0
 
 #define RETRY_TIMES 5
 //#define SHORT_RESPONSE_NOT_IGNORED "NOT_IGNORED"
@@ -208,7 +207,7 @@ PHP_FUNCTION(beanstalk_close)
 }
 
 /**
- * beanstalk_open( $host = '127.0.0.1', $port = 11300 )
+ * beanstalk_open( $host, $port )
  * @param $host
  * @param $port
  *
@@ -498,8 +497,6 @@ PHP_FUNCTION(beanstalk_put)
 
 
 /**
- * beanstalk_putInTube( $resource, $strTube, $strMsg, $lPri, $lDelay, $lTtr )
- *
  * @param resource	$id;
  * @param string 	$tube;
  * @param string	$message;
@@ -520,8 +517,8 @@ PHP_FUNCTION(beanstalk_putInTube)
 	long lPri = 1024;
 	long lDelay = 0;
 	long lTtr = 60;
-	char* pWBuf;
 
+	char* pWBuf;
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rss|lll", &zStream, &pTube, &iTubeLen, &pStrMsg, &msgLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -539,15 +536,20 @@ PHP_FUNCTION(beanstalk_putInTube)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+
+
 	if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
 	{
 		efree( pWBuf );
 		RETURN_FALSE;
 	}
+
 	efree( pWBuf );
 
 	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, lPri, lDelay, lTtr, msgLen, pStrMsg );
+
 	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED );
+
 	efree( pWBuf );
 }
 
@@ -882,7 +884,7 @@ static void getResponseIntData( php_stream* pStream, zval** return_value, char* 
 
 
 /**
- * beanstalk_kick( $resource, $max = 30 )
+ * beanstalk_kick( $resource, $max )
  *
  * @param	resource	$resource
  * @param 	int			$max
@@ -893,7 +895,7 @@ PHP_FUNCTION(beanstalk_kick)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	long lMax = 30;
+	long lMax = 0;
 	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lMax ) == FAILURE) {
@@ -902,15 +904,10 @@ PHP_FUNCTION(beanstalk_kick)
 
 	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
 
-	if( !zStream || !pStream )
+	if( !zStream || !pStream || lMax <= 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
-	}
-
-	if( lMax <= 0 )
-	{
-		lMax = 30;
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_KICK " %d" CRLF, lMax );
@@ -1115,7 +1112,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 }
 
 /**
- * beanstalk_listTubeUsed( $resource, $bAskServer = 0 )
+ * beanstalk_listTubeUsed( $resource, $bAskServer )
  * @param $resource
  * @param $bAskServer
  *
@@ -1271,7 +1268,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 }
 
 /**
- * beanstalk_peekBuried( $resource, $strTube = "default" )
+ * beanstalk_peekBuried( $resource, $strTube )
  *
  * @param $resource
  * @param $strTube tube name
@@ -1297,17 +1294,13 @@ PHP_FUNCTION(beanstalk_peekBuried)
 		RETURN_FALSE;
 	}
 
-	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
+	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+	if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
-		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
-		{
-			efree( pWBuf );
-			RETURN_FALSE;
-		}
 		efree( pWBuf );
-
+		RETURN_FALSE;
 	}
+	efree( pWBuf );
 
 	if( !php_stream_write_string( pStream, pWBuf ))
 	{
@@ -1407,7 +1400,7 @@ PHP_FUNCTION(beanstalk_release)
  * beanstalk_reserve( $rid, $lTimeOut )
  *
  * @param	resource	$rid
- * @param	long		$lTimeOut for seconds
+ * @param	long		$lTimeOut
  *
  * return array()
  */
@@ -1495,429 +1488,14 @@ PHP_FUNCTION(beanstalk_useTube)
 }
 
 /**
- * beanstalk_watch( $resource, $tube = 'default', BEANSTALK_WATCH_SIZE_NOT_RETURN )
+ * beanstalk_watch( $resource, $tube = 'default', 1 )
  *
  * @param	resource	$resource
  * @param	string		$tube
  * @param	int			$bWatchSize
  *
  * return true or watchsize for success false for error
- *
- * BEANSTALK_WATCH_SIZE_RETURN
- * BEANSTALK_WATCH_SIZE_NOT_RETURN
  */
-PHP_FUNCTION(beanstalk_watch)
-{//
-	php_stream* pStream = NULL;
-	zval* zStream = NULL;
-	char* strTube = NULL;
-	long bWatchSize = 0;
-	int iTubeLen = 0;
-	char* pWBuf = NULL;
+beanstalk_watch( $resource, $tube = 'default', 1 )；
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|sl", &zStream, &strTube, &iTubeLen, &bWatchSize ) == FAILURE) {
-		RETURN_FALSE;
-	}
-
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
-
-	if( !zStream || !pStream )
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
-		RETURN_FALSE;
-	}
-
-	if( !iTubeLen )
-	{
-		if( bWatchSize )
-		{
-			spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, "default" );
-		}
-		else
-		{
-			RETURN_TRUE;//by default watch default tube
-		}
-	}
-	else
-	{
-		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, strTube );
-	}
-
-	int iRetry = 0;
-	do
-	{
-		if( !php_stream_write_string( pStream, pWBuf ))
-		{
-			php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
-			RETURN_FALSE;
-		}
-
-		size_t sRet;
-		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
-
-		if( !strncmp( pRes, RESPONSE_WATCHING, strlen( RESPONSE_WATCHING ) ))
-		{
-			if( bWatchSize )
-			{
-				RETVAL_LONG( atoi( pRes + strlen( RESPONSE_WATCHING ) + 1 ) );
-				efree( pRes );
-				efree( pWBuf );
-
-				return;
-			}
-			else
-			{
-				efree( pRes );
-				efree( pWBuf );
-
-				RETURN_TRUE;
-			}
-		}
-
-
-		efree( pRes );
-	}
-	while( ++iRetry < RETRY_TIMES );
-
-	efree( pWBuf );
-	RETURN_FALSE;
-};
-
-//PHP_FUNCTION(beanstalk_watchOnly)
-//{
-//}
-
-
-/* {{{ php_beanstalk_init_globals
- */
-/* Uncomment this function if you have INI entries
-static void php_beanstalk_init_globals(zend_beanstalk_globals *beanstalk_globals)
-{
-	beanstalk_globals->global_value = 0;
-	beanstalk_globals->global_string = NULL;
-}
-*/
-/* }}} */
-//static int le_beanstalk_stream;
-
-static void php_beanstalk_phpstream_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
-{
-	php_stream *stream = (php_stream*)rsrc->ptr;
-	if( stream )
-		php_stream_close( stream );
-}
-
-/* {{{ PHP_MINIT_FUNCTION
- */
-PHP_MINIT_FUNCTION(beanstalk)
-{
-	le_beanstalk = zend_register_list_destructors_ex( php_beanstalk_phpstream_dtor, NULL, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, module_number );
-
-	/*
-	 * list return
-	 */
-	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_RETURN", TUBE_RETURN, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_NOT_RETURN", TUBE_NOT_RETURN, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_RETURN", RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_NOT_RETURN", NOT_RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
-
-	/* If you have INI entries, uncomment these lines
-	 * REGISTER_INI_ENTRIES();
-	 */
-
-
-	BEANSTALK_G(gstream) = NULL;
-
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_MSHUTDOWN_FUNCTION
- */
-PHP_MSHUTDOWN_FUNCTION(beanstalk)
-{
-	/*
-	 * uncomment this line if you have INI entries
-	 */
-//	UNREGISTER_INI_ENTRIES();
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request start */
-/* {{{ PHP_RINIT_FUNCTION
- */
-PHP_RINIT_FUNCTION(beanstalk)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* Remove if there's nothing to do at request end */
-/* {{{ PHP_RSHUTDOWN_FUNCTION
- */
-PHP_RSHUTDOWN_FUNCTION(beanstalk)
-{
-	return SUCCESS;
-}
-/* }}} */
-
-/* {{{ PHP_MINFO_FUNCTION
- */
-PHP_MINFO_FUNCTION(beanstalk)
-{
-	php_info_print_table_start();
-	php_info_print_table_header(2, "beanstalk support", "enabled");
-	php_info_print_table_row(2, "Version", PHP_BEANSTALK_VERSION);
-	php_info_print_table_row(2, "Supported php version", SUPPORTED_PHP_VERSION );
-	php_info_print_table_row(2, "Author", "Bruce Tsisen" );
-	php_info_print_table_row(2, "Supports", "qzfzz@163.com");
-	php_info_print_table_end();
-
-	/* Remove comments if you have entries in php.ini
-	DISPLAY_INI_ENTRIES();
-	*/
-}
-
-/**
- * @param php_stream 	*pStream
- * @param char* 		pCmd
- *
- *
- *  return
- *  0: for success
- *  1: for network error
- *  2: for response error
- */
-static __inline__ void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value )
-{
-	size_t sRet = 0;
-	char *pResponse = NULL;
-	size_t iLen = 0;
-	char *pRet = NULL;
-	char *token = NULL;
-
-	int iPos = 0;
-	char *pPos;
-	int i = 0;
-	int iRetry = 0;
-
-retry:
-
-	if( !php_stream_write_string( pStream, pCmd ))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
-		ZVAL_FALSE(*return_value);
-		return;
-	}
-
-	if( pResponse = php_stream_get_line( pStream, NULL, 0, &sRet ) )
-	{
-		//retry three times
-		if( 2 == strlen( pResponse ) && strncmp( pResponse, RESPONSE_DATA_OK, 2 ) && ++iRetry < 4 )
-		{
-			goto retry;
-		}
-
-		if( !strncmp( pResponse, RESPONSE_DATA_OK, 2 ))
-		{//RESPONSE_DATA_OK
-			token = strtok( pResponse, COMMAND_SEPARATOR );
-			while( token )
-			{
-				if( i == 1 )
-				{//id
-					iLen = atoi( token );
-					sRet = iLen;
-					iLen = 0;
-					pRet = emalloc( sRet );
-
-					while( iLen < sRet && !php_stream_eof( pStream ))
-					{
-						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
-					}
-
-					break;
-				}
-				++i;
-				token = strtok( NULL, COMMAND_SEPARATOR );
-			}
-
-			memset( pRet + sRet, '\0', strlen( pRet ) - iLen );
-
-			array_init( *return_value );
-			token = strtok( pRet, "\r\n" );
-			i = 0;
-			BSKeyVal bsKV;
-
-			while( token )
-			{
-				if( i++ == 0 )
-				{
-					token = strtok( NULL, "\r\n" );
-					continue;
-				}
-
-				bsKV.key.pStr = token;
-				pPos = strchr( token, ':' );
-
-				if( pPos )
-				{
-					iPos = pPos - token;
-					bsKV.key.iLen = iPos + 1;
-				}
-
-				bsKV.value.pStr = token + iPos + 2;
-				bsKV.value.iLen = strlen( token ) - iPos - 1;
-				add_assoc_stringl_ex( *return_value, bsKV.key.pStr, bsKV.key.iLen, bsKV.value.pStr, bsKV.value.iLen, 1 );
-				token = strtok( NULL, "\r\n" );
-			}
-
-			if( pRet )
-			{
-				efree( pRet );
-			}
-
-			efree( pResponse );
-
-			return;
-		}
-
-		if( pRet )
-		{
-			efree( pRet );
-		}
-
-		efree( pResponse );
-	}
-	else
-	{
-		if( ++iRetry < RETRY_TIMES )
-		{
-			goto retry;
-		}
-		// for error
-		ZVAL_FALSE(*return_value);
-		return;
-	}
-}
-
-/**
- * return 0 for success -1 for failure
- */
-static int useTube( php_stream *pStream, char* pCmd, zval** return_value, int bList )
-{
-	int i = 0;
-
-	do
-	{
-		if( !php_stream_write_string( pStream, pCmd ))
-		{
-			php_printf( "error\r\n" );
-			ZVAL_FALSE( *return_value );
-			return -1;
-		}
-
-		size_t sRet;
-		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
-
-		if( !strncmp( pRes, RESPONSE_USING, strlen( RESPONSE_USING ) ))
-		{
-			if( bList )
-			{
-				ZVAL_STRINGL( *return_value, pRes + strlen( RESPONSE_USING ) + 1, sRet - strlen( RESPONSE_USING ) - 3, 1 );
-			}
-			else
-			{
-				ZVAL_TRUE( *return_value );
-			}
-			efree( pRes );
-
-			return 0;
-		}
-		else if( ++i < RETRY_TIMES )
-		{
-			--i;
-			continue;
-		}
-
-		if( pRes )
-		{
-			efree( pRes );
-		}
-	}
-	while( ++i < RETRY_TIMES );//retry three times
-
-	ZVAL_FALSE( *return_value );
-	return -1;
-}
-
-
-
-/* }}} */
-
-/* {{{ beanstalk_functions[]
- *
- * Every user visible function must have an entry in beanstalk_functions[].
- */
-const zend_function_entry beanstalk_functions[] = {
-//	PHP_FE(confirm_beanstalk_compiled,	NULL)		/* For testing, remove later. */
-	PHP_FE(beanstalk_open,	NULL)
-	PHP_FE(beanstalk_close,	NULL)
-	PHP_FE(beanstalk_put,	NULL)
-	PHP_FE(beanstalk_peekReady,	NULL)
-	PHP_FE(beanstalk_peek,	NULL)
-	PHP_FE(beanstalk_delete, NULL)
-	PHP_FE(beanstalk_stats, NULL)
-	PHP_FE(beanstalk_bury, NULL)
-	PHP_FE(beanstalk_ignore, NULL)
-	PHP_FE(beanstalk_kick, NULL)
-	PHP_FE(beanstalk_kickJob, NULL)
-	PHP_FE(beanstalk_listTubes, NULL)
-	PHP_FE(beanstalk_listTubesWatched, NULL)
-	PHP_FE(beanstalk_listTubeUsed, NULL)
-	PHP_FE(beanstalk_pauseTube, NULL)
-	PHP_FE(beanstalk_resumeTube, NULL)
-	PHP_FE(beanstalk_peekDelayed, NULL)
-	PHP_FE(beanstalk_peekBuried, NULL)
-	PHP_FE(beanstalk_putInTube, NULL)
-	PHP_FE(beanstalk_release, NULL)
-	PHP_FE(beanstalk_reserve, NULL)
-	//PHP_FE(beanstalk_reserveFromTube, NULL)
-	PHP_FE(beanstalk_statsJob, NULL)
-	PHP_FE(beanstalk_statsTube, NULL)
-	PHP_FE(beanstalk_touch, NULL)
-	PHP_FE(beanstalk_useTube, NULL)
-	PHP_FE(beanstalk_watch, NULL)
-	//PHP_FE(beanstalk_watchOnly, NULL)
-	PHP_FE_END	/* Must be the last line in beanstalk_functions[] */
-};
-/* }}} */
-
-/* {{{ beanstalk_module_entry
- */
-zend_module_entry beanstalk_module_entry = {
-	STANDARD_MODULE_HEADER,
-	"beanstalk",
-	beanstalk_functions,
-	PHP_MINIT(beanstalk),
-	PHP_MSHUTDOWN(beanstalk),
-	PHP_RINIT(beanstalk),		/* Replace with NULL if there's nothing to do at request start */
-	PHP_RSHUTDOWN(beanstalk),	/* Replace with NULL if there's nothing to do at request end */
-	PHP_MINFO(beanstalk),
-	PHP_BEANSTALK_VERSION,
-	STANDARD_MODULE_PROPERTIES
-};
-/* }}} */
-
-#ifdef COMPILE_DL_BEANSTALK
-ZEND_GET_MODULE(beanstalk)
-#endif
-
-/*
- * Local variables:
- * tab-width: 4
- * c-basic-offset: 4
- * End:
- * vim600: noet sw=4 ts=4 fdm=marker
- * vim<600: noet sw=4 ts=4
- */
+?>
