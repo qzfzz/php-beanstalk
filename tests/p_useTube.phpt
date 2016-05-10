@@ -1,12 +1,17 @@
 --TEST--
-Check for beanstalk presence
+Check for useTube
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+beanstalk_close( $b );
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+var_dump( beanstalk_useTube( $b, 'test-tube-a' ));
 beanstalk_close( $b );
 
 /*
@@ -23,3 +28,4 @@ done
 */
 ?>
 --EXPECTF--
+string(%d) "test-tube-a"

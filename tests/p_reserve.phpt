@@ -1,10 +1,22 @@
 --TEST--
-Check for beanstalk presence
+Check for reserve
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-$b = beanstalk_open( "svn.huaer.dev" );
+$arrConfig = include __DIR__ . '/../include/config.inc';
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$job = beanstalk_reserve( $b );
+$strData = var_export( $job, true );
+var_dump( preg_match( "/array/", $strData ));
+beanstalk_close( $b );
+
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+var_dump( beanstalk_release( $b, $job['id'] ));
+beanstalk_close( $b );
+
+
 /*
 	you can add regression tests for your extension here
 
@@ -19,4 +31,5 @@ done
 */
 ?>
 --EXPECTF--
-resource(%d) of type (stream)
+int(1)
+bool(true)

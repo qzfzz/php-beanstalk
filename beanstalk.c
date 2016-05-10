@@ -295,6 +295,8 @@ static __inline__ void getResponseComplexData(
 
 	if( pResponse = php_stream_get_line( pStream, NULL, 0, NULL ) )
 	{
+		php_printf( "%s=%s\r\n", pCmd, pResponse );
+
 		if( !strncmp( pResponse, RESPONSE_DATA_FOUND, strlen( RESPONSE_DATA_FOUND )) ||
 			!strncmp( pResponse, RESPONSE_DATA_RESERVED, strlen( RESPONSE_DATA_RESERVED )))
 		{
@@ -371,7 +373,7 @@ PHP_FUNCTION(beanstalk_peek)
  * @param $resource		resource id
  * @param $strTube		tube name
  *
- * return false for error string data for success
+ * return array data for success others for failure
  */
 PHP_FUNCTION(beanstalk_peekReady)
 {
@@ -653,6 +655,7 @@ static void getResponseWithNoData( php_stream* pStream, zval** return_value, cha
 
 	if( pRet )
 	{
+//		php_printf( "%s=%s\r\n", pCmd, pRet );
 		switch( iResponseType )
 		{
 			case RESPONSE_NO_DATA_BURIED:

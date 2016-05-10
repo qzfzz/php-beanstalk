@@ -1,12 +1,24 @@
 --TEST--
-Check for beanstalk presence
+Check for beanstalk listTubes listTubesWatched listTubeUsed
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$strRet = var_export( beanstalk_listTubes( $b ), true );
+var_dump( preg_match( "/array/", $strRet ));
+beanstalk_close( $b );
 
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$strRet = var_export( beanstalk_listTubesWatched( $b ), true );
+var_dump( preg_match( "/array/", $strRet ));
+beanstalk_close( $b );
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+var_dump(beanstalk_listTubeUsed( $b ));
+// var_dump( preg_match( "/array/", $strRet ));
 beanstalk_close( $b );
 
 /*
@@ -23,3 +35,6 @@ done
 */
 ?>
 --EXPECTF--
+int(1)
+int(1)
+string(%d) "%s"

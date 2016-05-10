@@ -1,13 +1,15 @@
---TEST--
-Check for beanstalk presence
---SKIPIF--
-<?php if (!extension_loaded("beanstalk")) print "skip"; ?>
---FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
-
+$job = beanstalk_reserve( $b );
+$strData = var_export( $job, true );
+var_dump( preg_match( "/array/", $strData ));
 beanstalk_close( $b );
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+var_dump( beanstalk_release( $b, $job['id'] ));
+beanstalk_close( $b );
+
 
 /*
 	you can add regression tests for your extension here
@@ -22,4 +24,3 @@ beanstalk_close( $b );
 done
 */
 ?>
---EXPECTF--

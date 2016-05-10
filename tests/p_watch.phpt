@@ -1,10 +1,20 @@
 --TEST--
-Check for beanstalk presence
+Check for watch
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-$b = beanstalk_open( "svn.huaer.dev" );
+$arrConfig = include __DIR__ . '/../include/config.inc';
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+beanstalk_close( $b );
+
+
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+var_dump( beanstalk_watch( $b, 'test-tube-a' ));
+beanstalk_close( $b );
+
 /*
 	you can add regression tests for your extension here
 
@@ -19,4 +29,4 @@ done
 */
 ?>
 --EXPECTF--
-resource(%d) of type (stream)
+bool(true)

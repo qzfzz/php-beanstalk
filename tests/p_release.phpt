@@ -1,5 +1,5 @@
 --TEST--
-Check for beanstalk presence
+Check for release
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--

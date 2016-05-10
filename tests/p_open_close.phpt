@@ -4,7 +4,9 @@ test for beanstalk open close
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
-$b = beanstalk_open( "svn.huaer.dev" );
+
+$arrConfig = include __DIR__ . '/../include/config.inc';
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 var_dump( $b );
 var_dump( beanstalk_close( $b ));
 /*

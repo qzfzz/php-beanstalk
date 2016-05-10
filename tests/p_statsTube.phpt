@@ -1,14 +1,19 @@
 --TEST--
-Check for beanstalk presence
+Check for statsTube
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+beanstalk_putInTube( $b, 'test-tube-a', 'test' );
 beanstalk_close( $b );
 
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$strStats = var_export( beanstalk_statsTube( $b, 'test-tube-a' ), true );
+var_dump( preg_match( "/array/", $strStats ));
+beanstalk_close( $b );
 /*
 	you can add regression tests for your extension here
 
@@ -23,3 +28,4 @@ done
 */
 ?>
 --EXPECTF--
+int(1)

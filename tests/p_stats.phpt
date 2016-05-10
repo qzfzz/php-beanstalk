@@ -5,11 +5,12 @@ Check for beanstalk presence
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 
+$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 $strStats = var_export( beanstalk_stats( $b ), true );
 var_dump( preg_match( "/array/", $strStats ));
 beanstalk_close( $b );
+
 /*
 	you can add regression tests for your extension here
 
