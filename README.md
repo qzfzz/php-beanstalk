@@ -8,6 +8,8 @@ email: qzfzz@163.com
 
 php7-beanstalk在稍后会放出
 
+php5-beanstalk目前还在持续的开发和bug修复中，暂不建议用于生产中
+
 安装：
 
 ```
