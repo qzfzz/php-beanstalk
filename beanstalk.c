@@ -38,6 +38,7 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
 /* True global resources - no need for thread safety here */
 #define PHP_DESCRIPTOR_BEANSTALK_RES_NAME "stream"
 #define CRLF "\r\n"
+#define CRLF_LEN 2
 
 //返回错误
 #define RESPONSE_ERR_OUT_OF_MEMORY    "OutOfMemory",
@@ -292,11 +293,11 @@ static __inline__ void getResponseComplexData(
 	char *token;
 	int i = 0;
 	int jobID;
+	int iLen = 0;
+	size_t sRet;
 
 	if( pResponse = php_stream_get_line( pStream, NULL, 0, NULL ) )
 	{
-		php_printf( "%s=%s\r\n", pCmd, pResponse );
-
 		if( !strncmp( pResponse, RESPONSE_DATA_FOUND, strlen( RESPONSE_DATA_FOUND )) ||
 			!strncmp( pResponse, RESPONSE_DATA_RESERVED, strlen( RESPONSE_DATA_RESERVED )))
 		{
@@ -309,7 +310,20 @@ static __inline__ void getResponseComplexData(
 				}
 				else if( i == 2 )
 				{//length
-					pRet = php_stream_gets( pStream, NULL, 0 );
+					iLen = atoi( token );
+					sRet = iLen;
+					pRet = emalloc( sRet + CRLF_LEN );
+					memset( pRet, '\0', sRet + CRLF_LEN );
+					iLen = 0;
+					while( iLen < sRet && !php_stream_eof( pStream ))
+					{
+						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
+					}
+
+					php_stream_read( pStream, pRet + sRet, CRLF_LEN );
+
+//					php_printf( "sRet = %d, iLen = %d, strlen( pRet ) = %s", sRet, iLen, pRet );
+
 				}
 				++i;
 				token = strtok( NULL, COMMAND_SEPARATOR );
@@ -317,7 +331,8 @@ static __inline__ void getResponseComplexData(
 
 			array_init( *return_value );
 			add_assoc_long( *return_value, "id", jobID );
-			pRet[ strlen(pRet) - 2 ] = '\0';
+			memset( pRet + sRet, '\0', CRLF_LEN );
+//			php_printf( "sRet = %d, iLen = %d, strlen( pRet ) = %d\r\n", sRet, iLen, strlen( pRet ));
 
 			add_assoc_string( *return_value, "data", pRet, 1 );
 			efree( pRet );
@@ -347,7 +362,7 @@ PHP_FUNCTION(beanstalk_peek)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	long lJobID = -1;
-	char* pWBuf;
+	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
 		RETURN_FALSE;
@@ -362,7 +377,6 @@ PHP_FUNCTION(beanstalk_peek)
 	}
 
 	spprintf(&pWBuf, 0, COMMAND_PEEK " %d" CRLF, lJobID );
-
 	getResponseComplexData( pStream, &return_value, pWBuf );
 	efree( pWBuf );
 }
@@ -655,7 +669,6 @@ static void getResponseWithNoData( php_stream* pStream, zval** return_value, cha
 
 	if( pRet )
 	{
-//		php_printf( "%s=%s\r\n", pCmd, pRet );
 		switch( iResponseType )
 		{
 			case RESPONSE_NO_DATA_BURIED:
@@ -976,9 +989,11 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 	if( pResponse && strncmp( pResponse, RESPONSE_OK, 2 ))
 	{
 		efree( pResponse );
+		ZVAL_FALSE( *return_value );
+
 		return -1;
-//		php_printf( "%s=%d", pResponse, sRet );
 	}
+
 	token = strtok( pResponse, COMMAND_SEPARATOR );
 	while( token )
 	{
@@ -988,11 +1003,13 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 
 			sRet = iLen;
 			iLen = 0;
-			pRet = emalloc( sRet );
+			pRet = emalloc( sRet + CRLF_LEN );
 			while( iLen < sRet && !php_stream_eof( pStream ))
 			{
-				iLen += php_stream_read( pStream, pRet + iLen, sRet );
+				iLen += php_stream_read( pStream, pRet + iLen, sRet + CRLF_LEN - iLen );
 			}
+
+			memset( pRet + sRet, '\0', CRLF_LEN );
 
 			if( iLen > 0 )
 			{
@@ -1033,7 +1050,6 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 	ZVAL_FALSE( *return_value );
 
 	return -1;
-//	RETURN_FALSE;
 }
 
 /**
@@ -1065,12 +1081,12 @@ PHP_FUNCTION(beanstalk_listTubes)
 	do
 	{
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf );
-	}while( ++iTry < 3 );
+	}while( iRet && ++iTry < 3 );
 
-	if( iRet )
-	{
-		RETURN_FALSE;
-	}
+//	if( iRet )
+//	{
+//		RETURN_FALSE;
+//	}
 }
 
 /**
@@ -1709,14 +1725,18 @@ retry:
 
 	if( pResponse = php_stream_get_line( pStream, NULL, 0, &sRet ) )
 	{
+//		php_printf( "%s\r\n", pResponse );
+
 		//retry three times
 		if( 2 == strlen( pResponse ) && strncmp( pResponse, RESPONSE_DATA_OK, 2 ) && ++iRetry < 4 )
 		{
+			efree( pResponse );
 			goto retry;
 		}
 
 		if( !strncmp( pResponse, RESPONSE_DATA_OK, 2 ))
 		{//RESPONSE_DATA_OK
+//php_printf( "%s\r\n", pResponse );
 			token = strtok( pResponse, COMMAND_SEPARATOR );
 			while( token )
 			{
@@ -1725,11 +1745,11 @@ retry:
 					iLen = atoi( token );
 					sRet = iLen;
 					iLen = 0;
-					pRet = emalloc( sRet );
+					pRet = emalloc( sRet + CRLF_LEN );
 
 					while( iLen < sRet && !php_stream_eof( pStream ))
 					{
-						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
+						iLen += php_stream_read( pStream, pRet + iLen, sRet + CRLF_LEN - iLen );
 					}
 
 					break;
@@ -1738,9 +1758,10 @@ retry:
 				token = strtok( NULL, COMMAND_SEPARATOR );
 			}
 
-			memset( pRet + sRet, '\0', strlen( pRet ) - iLen );
+			memset( pRet + sRet, '\0', CRLF_LEN );
 
 			array_init( *return_value );
+
 			token = strtok( pRet, "\r\n" );
 			i = 0;
 			BSKeyVal bsKV;

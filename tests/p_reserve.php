@@ -4,10 +4,9 @@ $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 $job = beanstalk_reserve( $b );
 $strData = var_export( $job, true );
 var_dump( preg_match( "/array/", $strData ));
-beanstalk_close( $b );
 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 var_dump( beanstalk_release( $b, $job['id'] ));
+
 beanstalk_close( $b );
 
 

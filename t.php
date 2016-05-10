@@ -3,6 +3,62 @@ $t = microtime( true );
 
 $arrConfig = include( __DIR__ . '/include/config.inc'); 
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+
+$lJobID = beanstalk_put( $b, "message" );
+//var_dump( $lJobID);
+$job = beanstalk_reserve( $b );
+var_dump( $job );
+$job = ( beanstalk_peekReady($b));
+//var_dump( $job );
+var_dump( beanstalk_statsJob( $b, $lJobID ));
+//$strData = var_export( $job, true );
+//var_dump( preg_match( "/array/", $strData ));
+
+//var_dump( beanstalk_release( $b, $job['id'] ));
+
+beanstalk_close( $b );
+
+exit();
+$lJobID = beanstalk_put( $b, "message" );
+var_dump( $lJobID );
+var_dump( beanstalk_peek( $b, 22 ));
+var_dump( beanstalk_statsJob( $b, 22 ));
+$strPeek = var_export( beanstalk_peek( $b, 22 ), true );
+var_dump( preg_match( "/array/", $strPeek ));
+var_dump( $strPeek );
+
+beanstalk_close( $b );
+exit();
+$strPeek = var_export( beanstalk_peekReady( $b ), true );
+var_dump( $strPeek );
+var_dump( preg_match( "/array/", $strPeek ));
+
+exit();
+//var_dump( $b );
+var_dump( beanstalk_putInTube( $b, 'tubea', 'msg 1 ' ));
+/*var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_listTubes($b));
+*/
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+var_dump( beanstalk_listTubes($b));
+var_dump( beanstalk_stats( $b ));
+beanstalk_close( $b );
+exit();
 /*
 for( $i = 0; $i < 10; ++$i )
 {
@@ -15,8 +71,18 @@ var_dump( beanstalk_reserve( $b ));
 
 beanstalk_close( $b );
 */
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
-var_dump( beanstalk_reserve( $b ));
+
+
+$job = beanstalk_reserve( $b );
+$strData = var_export( $job, true );
+var_dump( preg_match( "/array/", $strData ));
+
+var_dump( beanstalk_release( $b, $job['id'] ));
+
+beanstalk_close( $b );
+exit();
+
+( beanstalk_reserve( $b ));
 
 $iSum = 0;
 for( $i = 0; $i < 100000000; ++$i )
