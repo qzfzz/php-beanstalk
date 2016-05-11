@@ -109,6 +109,8 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
 #define RESPONSE_NO_DATA_RELEASED	5
 #define RESPONSE_NO_DATA_TOUCHED	6
 
+#define ASK_SERVER 1
+#define NOT_ASK_SERVER 0
 #define TUBE_RETURN 1
 #define TUBE_NOT_RETURN 0
 #define RETURN_WATCH_SIZE 1
@@ -298,7 +300,6 @@ static void getResponseComplexData(
 
 	if( pResponse = php_stream_gets( pStream, NULL, 0 ) )
 	{
-		php_printf( "pCmd = %s, getResponseComplexData:%s", pCmd, pResponse );
 		if( !strncmp( pResponse, RESPONSE_DATA_FOUND, strlen( RESPONSE_DATA_FOUND )) ||
 			!strncmp( pResponse, RESPONSE_DATA_RESERVED, strlen( RESPONSE_DATA_RESERVED )))
 		{
@@ -313,22 +314,24 @@ static void getResponseComplexData(
 				{//length
 					iLen = atoi( token );
 					sRet = iLen;
-					pRet = emalloc( sRet + 1);
-//					memset( pRet, '\0', sRet );
+					pRet = emalloc( sRet + CRLF_LEN );
+
 					iLen = 0;
 					while( iLen < sRet && !php_stream_eof( pStream ))
 					{
 						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
 					}
 
-					char buf[2];
-					php_stream_read( pStream, buf, CRLF_LEN );
+					php_stream_read( pStream, pRet + sRet, CRLF_LEN );
 
-					if( strncmp( CRLF, buf, CRLF_LEN ))
+					if( strncmp( CRLF, pRet + sRet, CRLF_LEN ))
 					{
-						php_printf( "getResponseComplexData() Error!\r\n" );
+						ZVAL_FALSE( *return_value );
+
+						efree( pRet );
+						efree( pResponse );
+						return;
 					}
-//					php_printf( "sRet = %d, iLen = %d, strlen( pRet ) = %s", sRet, iLen, pRet );
 
 				}
 				++i;
@@ -337,9 +340,8 @@ static void getResponseComplexData(
 
 			array_init( *return_value );
 			add_assoc_long( *return_value, "id", jobID );
-			*(pRet + sRet) = '\0';
-//			memset( pRet + sRet, '\0', CRLF_LEN );
-			php_printf( "sRet = %d, iLen = %d, pRet = %s, strlen( pRet ) = %d\r\n", sRet, iLen, pRet, strlen( pRet ) );
+
+			memset( pRet + sRet, '\0', CRLF_LEN );
 
 			add_assoc_string( *return_value, "data", pRet, 1 );
 			efree( pRet );
@@ -1011,9 +1013,18 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 			sRet = iLen;
 			iLen = 0;
 			pRet = emalloc( sRet + CRLF_LEN );
+
 			while( iLen < sRet && !php_stream_eof( pStream ))
 			{
-				iLen += php_stream_read( pStream, pRet + iLen, sRet + CRLF_LEN - iLen );
+				iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
+			}
+			php_stream_read( pStream, pRet + sRet, CRLF_LEN );
+			if( strncmp( pRet + sRet, CRLF, CRLF_LEN ))
+			{
+				efree( pResponse );
+				efree( pRet );
+				ZVAL_FALSE( *return_value );
+				return -1;
 			}
 
 			memset( pRet + sRet, '\0', CRLF_LEN );
@@ -1134,7 +1145,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 }
 
 /**
- * beanstalk_listTubeUsed( $resource, $bAskServer = 0 )
+ * beanstalk_listTubeUsed( $resource, $bAskServer = BEANSTALK_NOT_ASK_SERVER )
  * @param $resource
  * @param $bAskServer
  *
@@ -1144,15 +1155,16 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	long lAskServer = 0;
+	long bAskServer = 0;
 	char* pWBuf = COMMAND_LIST_TUBE_USED CRLF;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &zStream, &lAskServer ) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &zStream, &bAskServer ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	if( !lAskServer )
+	if( !bAskServer )
 	{
 		RETURN_STRING( "default", 1 );
+		return;
 	}
 
 	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
@@ -1163,7 +1175,7 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 		RETURN_FALSE;
 	}
 
-	useTube( pStream, pWBuf, &return_value, lAskServer );
+	useTube( pStream, pWBuf, &return_value, bAskServer );
 
 }
 
@@ -1449,24 +1461,17 @@ PHP_FUNCTION(beanstalk_reserve)
 		RETURN_FALSE;
 	}
 
-//	if( lTimeOut <= 0 )//reserve
-//	{
-//		spprintf(&pWBuf, 0, COMMAND_RESERVE CRLF );
-//	}
-//	else
-//	{
-//		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
-//	}
-
-//	if( !php_stream_write( pStream, pWBuf, strlen( pWBuf ) ))
-//	{
-//		php_error_docref(NULL TSRMLS_CC, E_WARNING, "network error occur!");
-//		RETURN_FALSE;
-//	}
+	if( lTimeOut <= 0 )//reserve
+	{
+		spprintf(&pWBuf, 0, COMMAND_RESERVE CRLF );
+	}
+	else
+	{
+		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
+	}
 
 	getResponseComplexData( pStream, &return_value, pWBuf );
-//	efree( pWBuf );
-
+	efree( pWBuf );
 }
 
 //PHP_FUNCTION(beanstalk_reserveFromTube)
@@ -1639,6 +1644,8 @@ PHP_MINIT_FUNCTION(beanstalk)
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_NOT_RETURN", TUBE_NOT_RETURN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_RETURN", RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_NOT_RETURN", NOT_RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("BEANSTALK_ASK_SERVER", ASK_SERVER, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("BEANSTALK_NOT_ASK_SERVER", NOT_ASK_SERVER, CONST_CS | CONST_PERSISTENT);
 
 	/* If you have INI entries, uncomment these lines
 	 * REGISTER_INI_ENTRIES();
@@ -1715,7 +1722,6 @@ static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_val
 	size_t iLen = 0;
 	char *pRet = NULL;
 	char *token = NULL;
-	char *pTmp = NULL;
 
 	int iPos = 0;
 	char *pPos;
@@ -1726,15 +1732,13 @@ retry:
 
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
+//		php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
 		ZVAL_FALSE(*return_value);
 		return;
 	}
 
 	if( pResponse = php_stream_get_line( pStream, NULL, 0, &sRet ) )
 	{
-		php_printf( "pCmd = %s, getStatsResponse:%s\r\n", pCmd, pResponse );
-
 		//retry three times
 		if( 2 == strlen( pResponse ) && strncmp( pResponse, RESPONSE_DATA_OK, 2 ) && ++iRetry < 4 )
 		{
@@ -1745,12 +1749,8 @@ retry:
 
 		if( !strncmp( pResponse, RESPONSE_DATA_OK, 2 ))
 		{//RESPONSE_DATA_OK
-//php_printf( "%s\r\n", pResponse );
-			pTmp = estrdup( pResponse );
-			efree( pResponse );
-			pResponse = NULL;
 
-			token = strtok( pTmp, COMMAND_SEPARATOR );
+			token = strtok( pResponse, COMMAND_SEPARATOR );
 			while( token )
 			{
 				if( i == 1 )
@@ -1758,19 +1758,20 @@ retry:
 					iLen = atoi( token );
 					sRet = iLen;
 					iLen = 0;
-					pRet = emalloc( sRet + 1 );
+					pRet = emalloc( sRet + CRLF_LEN );
 
 					while( iLen < sRet && !php_stream_eof( pStream ))
 					{
 						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
 					}
-
-					char buf[2];
-					php_stream_read( pStream, buf, CRLF_LEN );
-
-					if( strncmp( CRLF, buf, CRLF_LEN ))
+					php_stream_read( pStream, pRet + sRet, CRLF_LEN );
+					if( strncmp( CRLF, pRet + sRet, CRLF_LEN ))
 					{
-						php_printf( "getResponseComplexData() Error!\r\n" );
+						efree( pRet );
+						efree( pResponse );
+
+						ZVAL_FALSE( *return_value );
+						return;
 					}
 					break;
 				}
@@ -1778,7 +1779,7 @@ retry:
 				token = strtok( NULL, COMMAND_SEPARATOR );
 			}
 
-			*( pRet + sRet) = '\0';
+			memset( pRet + sRet, '\0', CRLF_LEN );
 
 			array_init( *return_value );
 
@@ -1815,8 +1816,8 @@ retry:
 				pRet = NULL;
 			}
 
-			efree( pTmp );
-			pTmp = NULL;
+			efree( pResponse );
+			pResponse = NULL;
 			return;
 		}
 
@@ -1825,9 +1826,10 @@ retry:
 			efree( pRet );
 		}
 
-		if( pTmp )
+		if( pResponse )
 		{
-			efree( pTmp );
+			efree( pResponse );
+			pResponse = NULL;
 		}
 	}
 	else
