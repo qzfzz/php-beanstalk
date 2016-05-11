@@ -140,7 +140,7 @@ static int le_beanstalk;
 static int useTube( php_stream *pStream, char* pTube, zval** return_value, int bList );
 static char* explodeString( char* pStr, zval* array );
 static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value );
-static __inline__ void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd );
+static void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd );
 static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pStrTube, long lDelay );
 static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd );
 static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iType );
@@ -276,7 +276,7 @@ PHP_FUNCTION(beanstalk_open)
  * FOUND <id> <bytes>\r\n
  * <data>\r\n
  */
-static __inline__ void getResponseComplexData(
+static void getResponseComplexData(
 										php_stream* pStream,
 										zval** return_value,
 										char* pCmd )
@@ -296,8 +296,9 @@ static __inline__ void getResponseComplexData(
 	int iLen = 0;
 	size_t sRet;
 
-	if( pResponse = php_stream_get_line( pStream, NULL, 0, NULL ) )
+	if( pResponse = php_stream_gets( pStream, NULL, 0 ) )
 	{
+		php_printf( "pCmd = %s, getResponseComplexData:%s", pCmd, pResponse );
 		if( !strncmp( pResponse, RESPONSE_DATA_FOUND, strlen( RESPONSE_DATA_FOUND )) ||
 			!strncmp( pResponse, RESPONSE_DATA_RESERVED, strlen( RESPONSE_DATA_RESERVED )))
 		{
@@ -312,16 +313,21 @@ static __inline__ void getResponseComplexData(
 				{//length
 					iLen = atoi( token );
 					sRet = iLen;
-					pRet = emalloc( sRet + CRLF_LEN );
-					memset( pRet, '\0', sRet + CRLF_LEN );
+					pRet = emalloc( sRet + 1);
+//					memset( pRet, '\0', sRet );
 					iLen = 0;
 					while( iLen < sRet && !php_stream_eof( pStream ))
 					{
 						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
 					}
 
-					php_stream_read( pStream, pRet + sRet, CRLF_LEN );
+					char buf[2];
+					php_stream_read( pStream, buf, CRLF_LEN );
 
+					if( strncmp( CRLF, buf, CRLF_LEN ))
+					{
+						php_printf( "getResponseComplexData() Error!\r\n" );
+					}
 //					php_printf( "sRet = %d, iLen = %d, strlen( pRet ) = %s", sRet, iLen, pRet );
 
 				}
@@ -331,8 +337,9 @@ static __inline__ void getResponseComplexData(
 
 			array_init( *return_value );
 			add_assoc_long( *return_value, "id", jobID );
-			memset( pRet + sRet, '\0', CRLF_LEN );
-//			php_printf( "sRet = %d, iLen = %d, strlen( pRet ) = %d\r\n", sRet, iLen, strlen( pRet ));
+			*(pRet + sRet) = '\0';
+//			memset( pRet + sRet, '\0', CRLF_LEN );
+			php_printf( "sRet = %d, iLen = %d, pRet = %s, strlen( pRet ) = %d\r\n", sRet, iLen, pRet, strlen( pRet ) );
 
 			add_assoc_string( *return_value, "data", pRet, 1 );
 			efree( pRet );
@@ -1428,7 +1435,7 @@ PHP_FUNCTION(beanstalk_reserve)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	long lTimeOut = 0;
-	char* pWBuf = NULL;
+	char* pWBuf = COMMAND_RESERVE CRLF;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &zStream, &lTimeOut ) == FAILURE) {
 		RETURN_FALSE;
@@ -1442,23 +1449,23 @@ PHP_FUNCTION(beanstalk_reserve)
 		RETURN_FALSE;
 	}
 
-	if( lTimeOut <= 0 )//reserve
-	{
-		spprintf(&pWBuf, 0, COMMAND_RESERVE CRLF );
-	}
-	else
-	{
-		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
-	}
+//	if( lTimeOut <= 0 )//reserve
+//	{
+//		spprintf(&pWBuf, 0, COMMAND_RESERVE CRLF );
+//	}
+//	else
+//	{
+//		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
+//	}
 
-	if( !php_stream_write_string( pStream, pWBuf ))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING, "network error occur!");
-		RETURN_FALSE;
-	}
+//	if( !php_stream_write( pStream, pWBuf, strlen( pWBuf ) ))
+//	{
+//		php_error_docref(NULL TSRMLS_CC, E_WARNING, "network error occur!");
+//		RETURN_FALSE;
+//	}
 
 	getResponseComplexData( pStream, &return_value, pWBuf );
-	efree( pWBuf );
+//	efree( pWBuf );
 
 }
 
@@ -1701,13 +1708,14 @@ PHP_MINFO_FUNCTION(beanstalk)
  *  1: for network error
  *  2: for response error
  */
-static __inline__ void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value )
+static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value )
 {
 	size_t sRet = 0;
 	char *pResponse = NULL;
 	size_t iLen = 0;
 	char *pRet = NULL;
 	char *token = NULL;
+	char *pTmp = NULL;
 
 	int iPos = 0;
 	char *pPos;
@@ -1725,19 +1733,24 @@ retry:
 
 	if( pResponse = php_stream_get_line( pStream, NULL, 0, &sRet ) )
 	{
-//		php_printf( "%s\r\n", pResponse );
+		php_printf( "pCmd = %s, getStatsResponse:%s\r\n", pCmd, pResponse );
 
 		//retry three times
 		if( 2 == strlen( pResponse ) && strncmp( pResponse, RESPONSE_DATA_OK, 2 ) && ++iRetry < 4 )
 		{
 			efree( pResponse );
+			pResponse = NULL;
 			goto retry;
 		}
 
 		if( !strncmp( pResponse, RESPONSE_DATA_OK, 2 ))
 		{//RESPONSE_DATA_OK
 //php_printf( "%s\r\n", pResponse );
-			token = strtok( pResponse, COMMAND_SEPARATOR );
+			pTmp = estrdup( pResponse );
+			efree( pResponse );
+			pResponse = NULL;
+
+			token = strtok( pTmp, COMMAND_SEPARATOR );
 			while( token )
 			{
 				if( i == 1 )
@@ -1745,20 +1758,27 @@ retry:
 					iLen = atoi( token );
 					sRet = iLen;
 					iLen = 0;
-					pRet = emalloc( sRet + CRLF_LEN );
+					pRet = emalloc( sRet + 1 );
 
 					while( iLen < sRet && !php_stream_eof( pStream ))
 					{
-						iLen += php_stream_read( pStream, pRet + iLen, sRet + CRLF_LEN - iLen );
+						iLen += php_stream_read( pStream, pRet + iLen, sRet - iLen );
 					}
 
+					char buf[2];
+					php_stream_read( pStream, buf, CRLF_LEN );
+
+					if( strncmp( CRLF, buf, CRLF_LEN ))
+					{
+						php_printf( "getResponseComplexData() Error!\r\n" );
+					}
 					break;
 				}
 				++i;
 				token = strtok( NULL, COMMAND_SEPARATOR );
 			}
 
-			memset( pRet + sRet, '\0', CRLF_LEN );
+			*( pRet + sRet) = '\0';
 
 			array_init( *return_value );
 
@@ -1792,10 +1812,11 @@ retry:
 			if( pRet )
 			{
 				efree( pRet );
+				pRet = NULL;
 			}
 
-			efree( pResponse );
-
+			efree( pTmp );
+			pTmp = NULL;
 			return;
 		}
 
@@ -1804,7 +1825,10 @@ retry:
 			efree( pRet );
 		}
 
-		efree( pResponse );
+		if( pTmp )
+		{
+			efree( pTmp );
+		}
 	}
 	else
 	{
