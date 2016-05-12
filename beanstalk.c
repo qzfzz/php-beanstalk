@@ -421,7 +421,6 @@ PHP_FUNCTION(beanstalk_peek)
 	efree( pWBuf );
 }
 
-
 /**
  * beanstalk_peek( $resource, $strTube = 'default' )
  * @param $resource		resource id
