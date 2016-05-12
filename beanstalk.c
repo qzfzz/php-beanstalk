@@ -29,6 +29,7 @@
 #include "Zend/zend_list.h"
 #include "Zend/zend_alloc.h"
 #include "Zend/zend_hash.h"
+#include "Zend/zend_API.h"
 #include <string.h>
 
 /* If you declare any globals in php_beanstalk.h uncomment this:
@@ -117,21 +118,6 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
 #define NOT_RETURN_WATCH_SIZE 0
 
 #define RETRY_TIMES 5
-//#define SHORT_RESPONSE_NOT_IGNORED "NOT_IGNORED"
-//#define SHORT_RESPONSE_BURIED "BURIED"
-//#define SHORT_RESPONSE_EXPECTED_CRLF "EXPECTED_CRLF"
-//#define SHORT_RESPONSE_JOB_TOO_BIG "JOB_TOO_BIG"
-//#define SHORT_RESPONSE_USING "USING"
-//#define SHORT_RESPONSE_DEADLINE_SOON "DEADLINE_SOON"
-//#define SHORT_RESPONSE_RESERVED "RESERVED"
-//#define SHORT_RESPONSE_DELETED "DELETED"
-//#define SHORT_RESPONSE_NOT_FOUND "NOT_FOUND"
-//#define SHORT_RESPONSE_RELEASED "RELEASED"
-//#define SHORT_RESPONSE_FOUND "FOUND"
-//#define SHORT_RESPONSE_OK "OK"
-//#define SHORT_RESPONSE_TIMED_OUT "TIMED_OUT"
-//#define SHORT_RESPONSE_TOUCHED "TOUCHED"
-//#define SHORT_RESPONSE_PAUSED "PAUSED"
 
 
 /**
@@ -204,9 +190,23 @@ PHP_FUNCTION(beanstalk_close)
 		RETURN_FALSE;
 	}
 
+#if PHP_API_VERSION < 20151012
 	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
 	zend_hash_index_del(&EG(regular_list),Z_RESVAL_P( zStream ));
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+	zend_hash_index_del(&EG(regular_list), pStream->res->handle);
+#endif
+
 	RETURN_TRUE;
 }
 
@@ -221,12 +221,19 @@ PHP_FUNCTION(beanstalk_open)
 {
     char *host = "127.0.0.1", *transport, *errstr = NULL;
 	int host_len = sizeof( "127.0.0.1" ) - 1, transport_len, implicit_tcp = 1, errcode = 0;
-    int options = ENFORCE_SAFE_MODE;
+
     int flags = STREAM_XPORT_CLIENT | STREAM_XPORT_CONNECT;
 	php_stream* pStream = NULL;
-	int iHostLen = -1;
-	long lPort = 11300;//default 11300
 
+#if PHP_API_VERSION < 20151012
+	int iHostLen = -1;
+	int options = ENFORCE_SAFE_MODE;
+#else
+	size_t iHostLen = -1;
+	int options = 0;
+#endif
+
+	long lPort = 11300;//default 11300
 	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sl", &host, &iHostLen, &lPort ) == FAILURE) {
@@ -241,10 +248,12 @@ PHP_FUNCTION(beanstalk_open)
 	if(lPort)
 	{
 		int implicit_tcp = 1;
+
 		if (strstr(host, "://"))
 		{
 			implicit_tcp = 0;
 		}
+
 		transport_len = spprintf(&transport, 0, "%s%s:%d",
 				implicit_tcp ? "tcp://" : "", host, lPort);
 	}
@@ -270,7 +279,13 @@ PHP_FUNCTION(beanstalk_open)
 	}
 
 	BEANSTALK_G(gstream) = pStream;
+
+
+#if PHP_API_VERSION < 20151012
 	ZEND_REGISTER_RESOURCE(return_value,pStream,le_beanstalk);
+#else
+	RETURN_RES( zend_register_resource( pStream, le_beanstalk ));
+#endif
 }
 
 /**
@@ -343,13 +358,22 @@ static void getResponseComplexData(
 
 			memset( pRet + sRet, '\0', CRLF_LEN );
 
-			add_assoc_string( *return_value, "data", pRet, 1 );
+#if PHP_API_VERSION < 20151012
+						add_assoc_string( *return_value, "data", pRet, 1 );
+#else
+			add_assoc_string( *return_value, "data", pRet );
+#endif
 			efree( pRet );
 			efree( pResponse );
 		}
 		else
 		{
+
+#if PHP_API_VERSION < 20151012
 			ZVAL_STRING( *return_value, pResponse, 1 );
+#else
+			ZVAL_STRING( *return_value, pResponse );
+#endif
 			efree( pResponse );
 		}
 	}
@@ -377,9 +401,16 @@ PHP_FUNCTION(beanstalk_peek)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
-	if( !zStream || !pStream || lJobID < 0 )
+	if( lJobID < 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -403,19 +434,32 @@ PHP_FUNCTION(beanstalk_peekReady)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pTube = "default";
-	int tubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	tubeLen = 0;
+
 	char* pWBuf = NULL;//COMMAND_PEEK_READY CRLF;
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
-
-	if( !zStream || !pStream )
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#endif
+
+//	if( !zStream || !pStream )
+//	{
+//		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+//		RETURN_FALSE;
+//	}
 
 	if( tubeLen )
 	{
@@ -457,13 +501,20 @@ PHP_FUNCTION(beanstalk_delete)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
 	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED );
@@ -486,7 +537,12 @@ PHP_FUNCTION(beanstalk_put)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pStr = NULL;
-	int msgLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	msgLen = 0;
 	int iPri = 1024;
 	int iDelay = 0;
 	int iTtr = 60;
@@ -496,15 +552,24 @@ PHP_FUNCTION(beanstalk_put)
 		RETURN_FALSE;
 	}
 
-	if( msgLen == 0 ){
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
-		RETURN_FALSE;
-	}
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	php_printf( "hello put 1 \r\n" );
+	if( msgLen == 0 ){
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
 		RETURN_FALSE;
 	}
 
@@ -533,8 +598,12 @@ PHP_FUNCTION(beanstalk_putInTube)
 	zval* zStream = NULL;
 	char* pStrMsg = NULL;
 	char* pTube = NULL;
-	int iTubeLen = 0;
-	int msgLen = 0;
+#if PHP_API_VERSION < 20151012
+	int iTubeLen = 0, msgLen = 0;
+#else
+	size_t iTubeLen = 0, msgLen = 0;
+#endif
+
 	long lPri = 1024;
 	long lDelay = 0;
 	long lTtr = 60;
@@ -544,15 +613,23 @@ PHP_FUNCTION(beanstalk_putInTube)
 		RETURN_FALSE;
 	}
 
-	if( msgLen == 0 || iTubeLen == 0 ){
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
-		RETURN_FALSE;
-	}
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( msgLen == 0 || iTubeLen == 0 ){
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
@@ -585,13 +662,20 @@ PHP_FUNCTION(beanstalk_stats)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the param!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	getStatsResponse( pStream, pWBuf, &return_value );
 }
@@ -614,9 +698,22 @@ PHP_FUNCTION(beanstalk_statsJob)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || iJobID < 0 )
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( iJobID < 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -641,15 +738,33 @@ PHP_FUNCTION(beanstalk_statsTube)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pTube = NULL;
-	int iTubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || 0 == iTubeLen )
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( 0 == iTubeLen )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -768,9 +883,22 @@ PHP_FUNCTION(beanstalk_bury)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || -1 == lJobID )
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( -1 == lJobID )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -799,20 +927,32 @@ PHP_FUNCTION(beanstalk_ignore)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* strTube = NULL;
-	int iTubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
 	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &strTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( !iTubeLen )
 	{
@@ -918,13 +1058,20 @@ PHP_FUNCTION(beanstalk_kick)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( lMax <= 0 )
 	{
@@ -957,9 +1104,22 @@ PHP_FUNCTION(beanstalk_kickJob)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || lJobID < 0 )
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( lJobID < 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -1049,8 +1209,11 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 
 						continue;
 					}
-
+#if PHP_API_VERSION < 20151012
 					add_next_index_stringl( *return_value, token + 2, strlen( token ) - 2, 1 );
+#else
+					add_next_index_stringl( *return_value, token + 2, strlen( token ) - 2 );
+#endif
 					token = strtok( NULL, CRLF );
 				}
 
@@ -1085,13 +1248,20 @@ PHP_FUNCTION(beanstalk_listTubes)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the param!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 
 	int iTry = 0;
@@ -1122,13 +1292,20 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the param!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	int iTry = 0;
 	int iRet = 0;
@@ -1163,17 +1340,28 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 
 	if( !bAskServer )
 	{
+#if PHP_API_VERSION < 20151012
 		RETURN_STRING( "default", 1 );
+#else
+		RETURN_STRING( "default" );
+#endif
 		return;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the param!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	useTube( pStream, pWBuf, &return_value, bAskServer );
 
@@ -1204,16 +1392,34 @@ PHP_FUNCTION(beanstalk_pauseTube)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pStrTube = NULL;
-	int iTubeLen = -1;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = -1;
 	long lDelay = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rsl", &zStream, &pStrTube, &iTubeLen, &lDelay ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || iTubeLen < 0 )
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( iTubeLen < 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -1240,15 +1446,24 @@ PHP_FUNCTION(beanstalk_resumeTube)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pStrTube = NULL;
-	int iTubeLen = -1;
+	size_t iTubeLen = -1;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
-
-	if( !zStream || !pStream || iTubeLen < 0 )
+	if( iTubeLen < 0 )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -1270,19 +1485,31 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pTube = "default";
-	int tubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	tubeLen = 0;
 	char* pWBuf = NULL;//COMMAND_PEEK_DELAYED CRLF;
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
@@ -1314,19 +1541,31 @@ PHP_FUNCTION(beanstalk_peekBuried)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pTube = NULL;
-	int tubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	tubeLen = 0;
 	char* pWBuf = NULL;
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
@@ -1370,19 +1609,27 @@ PHP_FUNCTION(beanstalk_touch)
 		RETURN_FALSE;
 	}
 
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
 	if( !lJobID )
 	{
 		//for error
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
-
-	if( !zStream || !pStream )
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
-		RETURN_FALSE;
-	}
 
 	spprintf( &pWBuf, 0, COMMAND_TOUCH " %d" CRLF, lJobID );
 
@@ -1413,17 +1660,24 @@ PHP_FUNCTION(beanstalk_release)
 		RETURN_FALSE;
 	}
 
-	if( !lJobID )
-	{
-		//for error
-		RETURN_FALSE;
-	}
-
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif}
+
+	if( !lJobID )
+	{
+		//for error
 		RETURN_FALSE;
 	}
 
@@ -1453,13 +1707,20 @@ PHP_FUNCTION(beanstalk_reserve)
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( lTimeOut <= 0 )//reserve
 	{
@@ -1492,16 +1753,34 @@ PHP_FUNCTION(beanstalk_useTube)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* strTube = NULL;
-	int iTubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
 	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &strTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream || iTubeLen == 0)
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
+
+	if( iTubeLen == 0)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
@@ -1536,20 +1815,32 @@ PHP_FUNCTION(beanstalk_watch)
 	zval* zStream = NULL;
 	char* strTube = NULL;
 	long bWatchSize = 0;
-	int iTubeLen = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
 	char* pWBuf = NULL;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|sl", &zStream, &strTube, &iTubeLen, &bWatchSize ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
-	ZEND_FETCH_RESOURCE( pStream, php_stream*,&zStream, -1,PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk);
+#if PHP_API_VERSION < 20151012
+	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
 	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+#else
+	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	{
+		RETURN_FALSE;
+	}
+#endif
 
 	if( !iTubeLen )
 	{
@@ -1624,13 +1915,17 @@ static void php_beanstalk_init_globals(zend_beanstalk_globals *beanstalk_globals
 /* }}} */
 //static int le_beanstalk_stream;
 
+
+#if PHP_API_VERSION < 20151012
 static void php_beanstalk_phpstream_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC)
+#else
+static void php_beanstalk_phpstream_dtor(zend_resource *rsrc )
+#endif
 {
 	php_stream *stream = (php_stream*)rsrc->ptr;
 	if( stream )
 		php_stream_close( stream );
 }
-
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(beanstalk)
@@ -1806,7 +2101,13 @@ retry:
 
 				bsKV.value.pStr = token + iPos + 2;
 				bsKV.value.iLen = strlen( token ) - iPos - 1;
+
+#if PHP_API_VERSION < 20151012
 				add_assoc_stringl_ex( *return_value, bsKV.key.pStr, bsKV.key.iLen, bsKV.value.pStr, bsKV.value.iLen, 1 );
+#else
+				add_assoc_stringl_ex( *return_value, bsKV.key.pStr, bsKV.key.iLen, bsKV.value.pStr, bsKV.value.iLen );
+#endif
+
 				token = strtok( NULL, "\r\n" );
 			}
 
@@ -1867,7 +2168,13 @@ static int useTube( php_stream *pStream, char* pCmd, zval** return_value, int bL
 		{
 			if( bList )
 			{
+
+#if PHP_API_VERSION < 20151012
 				ZVAL_STRINGL( *return_value, pRes + strlen( RESPONSE_USING ) + 1, sRet - strlen( RESPONSE_USING ) - 3, 1 );
+#else
+				ZVAL_STRINGL( *return_value, pRes + strlen( RESPONSE_USING ) + 1, sRet - strlen( RESPONSE_USING ) - 3 );
+#endif
+
 			}
 			else
 			{
