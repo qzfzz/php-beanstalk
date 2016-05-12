@@ -125,14 +125,14 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
  */
 static int le_beanstalk;
 
-static int useTube( php_stream *pStream, char* pTube, zval** return_value, int bList );
+static int useTube( php_stream *pStream, char* pTube, zval** return_value, int bList TSRMLS_DC);
 static char* explodeString( char* pStr, zval* array );
-static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value );
-static void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd );
-static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pStrTube, long lDelay );
-static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd );
-static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iType );
-static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType );
+static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value TSRMLS_DC );
+static void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC );
+static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pStrTube, long lDelay TSRMLS_DC );
+static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC );
+static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iType TSRMLS_DC);
+static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType TSRMLS_DC );
 
 /* {{{ PHP_INI
  */
@@ -278,7 +278,7 @@ PHP_FUNCTION(beanstalk_open)
 		RETURN_FALSE;
 	}
 
-	BEANSTALK_G(gstream) = pStream;
+//	BEANSTALK_G(gstream) = pStream;
 
 
 #if PHP_API_VERSION < 20151012
@@ -296,7 +296,7 @@ PHP_FUNCTION(beanstalk_open)
 static void getResponseComplexData(
 										php_stream* pStream,
 										zval** return_value,
-										char* pCmd )
+										char* pCmd TSRMLS_DC )
 {
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
@@ -417,7 +417,7 @@ PHP_FUNCTION(beanstalk_peek)
 	}
 
 	spprintf(&pWBuf, 0, COMMAND_PEEK " %d" CRLF, lJobID );
-	getResponseComplexData( pStream, &return_value, pWBuf );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -465,7 +465,7 @@ PHP_FUNCTION(beanstalk_peekReady)
 	{
 		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
 
-		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
 			RETURN_FALSE;
@@ -474,7 +474,7 @@ PHP_FUNCTION(beanstalk_peekReady)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_PEEK_READY CRLF );
-	getResponseComplexData( pStream, &return_value, pWBuf );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -517,7 +517,7 @@ PHP_FUNCTION(beanstalk_delete)
 #endif
 
 	spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED );
+	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -574,7 +574,7 @@ PHP_FUNCTION(beanstalk_put)
 	}
 
 	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED );
+	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -634,7 +634,7 @@ PHP_FUNCTION(beanstalk_putInTube)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
-	if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
+	if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 	{
 		efree( pWBuf );
 		RETURN_FALSE;
@@ -642,7 +642,7 @@ PHP_FUNCTION(beanstalk_putInTube)
 	efree( pWBuf );
 
 	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, lPri, lDelay, lTtr, msgLen, pStrMsg );
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED );
+	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -677,7 +677,7 @@ PHP_FUNCTION(beanstalk_stats)
 	}
 #endif
 
-	getStatsResponse( pStream, pWBuf, &return_value );
+	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 }
 
 /**
@@ -721,7 +721,7 @@ PHP_FUNCTION(beanstalk_statsJob)
 
 	char* pWBuf = NULL;
 	spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, iJobID );
-	getStatsResponse( pStream, pWBuf, &return_value );
+	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -772,7 +772,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 
 	char* pWBuf = NULL;
 	spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pTube );
-	getStatsResponse( pStream, pWBuf, &return_value );
+	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -781,7 +781,7 @@ PHP_FUNCTION(beanstalk_statsTube)
  *
  * 形如： "TOUCHED\r\n" to indicate success.
  */
-static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType )
+static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType TSRMLS_DC )
 {
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
@@ -907,7 +907,7 @@ PHP_FUNCTION(beanstalk_bury)
 	char* pWBuf = NULL;
 	spprintf( &pWBuf, 0, COMMAND_BURY " %d %d" CRLF, lJobID, lPri );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED );
+	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED TSRMLS_CC );
 
 	efree( pWBuf );
 }
@@ -968,7 +968,7 @@ PHP_FUNCTION(beanstalk_ignore)
 		spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, strTube );
 	}
 
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING );
+	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -976,7 +976,7 @@ PHP_FUNCTION(beanstalk_ignore)
  * 响应中带整型数据
  * 形如： "INSERTED <id>\r\n"
  */
-static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iResType )
+static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iResType TSRMLS_DC )
 {
 	size_t sRet;
 	char* pRes = NULL;
@@ -1080,7 +1080,7 @@ PHP_FUNCTION(beanstalk_kick)
 
 	spprintf( &pWBuf, 0, COMMAND_KICK " %d" CRLF, lMax );
 
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_KICKED );
+	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_KICKED TSRMLS_CC );
 
 	efree( pWBuf );
 }
@@ -1127,7 +1127,7 @@ PHP_FUNCTION(beanstalk_kickJob)
 
 	spprintf( &pWBuf, 0, COMMAND_KICK_JOB " %d" CRLF, lJobID );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_KICKED );
+	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_KICKED TSRMLS_CC );
 
 	efree( pWBuf );
 }
@@ -1141,7 +1141,7 @@ PHP_FUNCTION(beanstalk_kickJob)
  *
  * this data format is not same as beanstalk_peek ...
  */
-static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd )
+static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC )
 {
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
@@ -1268,7 +1268,7 @@ PHP_FUNCTION(beanstalk_listTubes)
 	int iRet = 0;
 	do
 	{
-		iRet = getListTubeResponse( pStream, &return_value, pWBuf );
+		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
 	}while( iRet && ++iTry < 3 );
 
 //	if( iRet )
@@ -1311,7 +1311,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 	int iRet = 0;
 	do
 	{
-		iRet = getListTubeResponse( pStream, &return_value, pWBuf );
+		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
 	}while( ++iTry < 3 );
 
 	if( iRet )
@@ -1363,17 +1363,17 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 	}
 #endif
 
-	useTube( pStream, pWBuf, &return_value, bAskServer );
+	useTube( pStream, pWBuf, &return_value, bAskServer TSRMLS_CC );
 
 }
 
-static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pStrTube, long lDelay )
+static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pStrTube, long lDelay TSRMLS_DC )
 {
 	char* pWBuf = NULL;
 
 	spprintf( &pWBuf, 0, COMMAND_PAUSE_TUBE " %s %d" CRLF, pStrTube, lDelay );
 
-	getResponseWithNoData( pStream, return_value, pWBuf, RESPONSE_NO_DATA_PAUSED );
+	getResponseWithNoData( pStream, return_value, pWBuf, RESPONSE_NO_DATA_PAUSED TSRMLS_CC );
 
 	efree( pWBuf );
 }
@@ -1430,7 +1430,7 @@ PHP_FUNCTION(beanstalk_pauseTube)
 		lDelay = 0;
 	}
 
-	pauseResumeTube( pStream, &return_value, pStrTube, lDelay );
+	pauseResumeTube( pStream, &return_value, pStrTube, lDelay TSRMLS_CC );
 }
 
 /**
@@ -1469,7 +1469,7 @@ PHP_FUNCTION(beanstalk_resumeTube)
 		RETURN_FALSE;
 	}
 
-	pauseResumeTube( pStream, &return_value, pStrTube, 0 );
+	pauseResumeTube( pStream, &return_value, pStrTube, 0 TSRMLS_CC );
 }
 
 /**
@@ -1514,7 +1514,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
 		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
-		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
 			RETURN_FALSE;
@@ -1524,7 +1524,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_PEEK_DELAYED CRLF );
-	getResponseComplexData( pStream, &return_value, pWBuf );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -1570,7 +1570,7 @@ PHP_FUNCTION(beanstalk_peekBuried)
 	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
 		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
-		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN ))
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
 			RETURN_FALSE;
@@ -1586,7 +1586,7 @@ PHP_FUNCTION(beanstalk_peekBuried)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_PEEK_BURIED CRLF );
-	getResponseComplexData( pStream, &return_value, pWBuf );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
 	efree( pWBuf );
 }
 
@@ -1633,7 +1633,7 @@ PHP_FUNCTION(beanstalk_touch)
 
 	spprintf( &pWBuf, 0, COMMAND_TOUCH " %d" CRLF, lJobID );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_TOUCHED );
+	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_TOUCHED TSRMLS_CC );
 
 	efree( pWBuf );
 }
@@ -1683,7 +1683,7 @@ PHP_FUNCTION(beanstalk_release)
 
 	spprintf( &pWBuf, 0, COMMAND_RELEASE " %d %d %d" CRLF, lJobID, lPri, lDelay );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_RELEASED );
+	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_RELEASED TSRMLS_CC );
 	efree( pWBuf );
 
 }
@@ -1731,7 +1731,7 @@ PHP_FUNCTION(beanstalk_reserve)
 		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
 	}
 
-	getResponseComplexData( pStream, &return_value, pWBuf );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC);
 	efree( pWBuf );
 }
 
@@ -1766,6 +1766,7 @@ PHP_FUNCTION(beanstalk_useTube)
 	}
 
 #if PHP_API_VERSION < 20151012
+
 	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
 	if( !zStream || !pStream )
@@ -1773,11 +1774,14 @@ PHP_FUNCTION(beanstalk_useTube)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
 		RETURN_FALSE;
 	}
+
 #else
+
 	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
 	{
 		RETURN_FALSE;
 	}
+
 #endif
 
 	if( iTubeLen == 0)
@@ -1788,7 +1792,7 @@ PHP_FUNCTION(beanstalk_useTube)
 
 	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, strTube );
 
-	if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN ))
+	if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN TSRMLS_CC ))
 	{
 		efree( pWBuf );
 		return;
@@ -1947,7 +1951,7 @@ PHP_MINIT_FUNCTION(beanstalk)
 	 */
 
 
-	BEANSTALK_G(gstream) = NULL;
+	//BEANSTALK_G(gstream) = NULL;
 
 	return SUCCESS;
 }
@@ -2010,7 +2014,7 @@ PHP_MINFO_FUNCTION(beanstalk)
  *  1: for network error
  *  2: for response error
  */
-static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value )
+static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value TSRMLS_DC )
 {
 	size_t sRet = 0;
 	char *pResponse = NULL;
@@ -2148,7 +2152,7 @@ retry:
 /**
  * return 0 for success -1 for failure
  */
-static int useTube( php_stream *pStream, char* pCmd, zval** return_value, int bList )
+static int useTube( php_stream *pStream, char* pCmd, zval** return_value, int bList TSRMLS_DC )
 {
 	int i = 0;
 
