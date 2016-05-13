@@ -199,12 +199,14 @@ PHP_FUNCTION(beanstalk_close)
 		RETURN_FALSE;
 	}
 	zend_hash_index_del(&EG(regular_list),Z_RESVAL_P( zStream ));
+    php_stream_close( pStream );
 #else
 	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
 	{
 		RETURN_FALSE;
 	}
-	zend_hash_index_del(&EG(regular_list), pStream->res->handle);
+    php_stream_close( pStream  );
+	//zend_hash_index_del(&EG(regular_list), pStream->res->handle);
 #endif
 
 	RETURN_TRUE;
@@ -421,6 +423,7 @@ PHP_FUNCTION(beanstalk_peek)
 	efree( pWBuf );
 }
 
+
 /**
  * beanstalk_peek( $resource, $strTube = 'default' )
  * @param $resource		resource id
@@ -566,7 +569,6 @@ PHP_FUNCTION(beanstalk_put)
 	}
 #endif
 
-	php_printf( "hello put 1 \r\n" );
 	if( msgLen == 0 ){
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
 		RETURN_FALSE;
@@ -1935,9 +1937,6 @@ PHP_MINIT_FUNCTION(beanstalk)
 {
 	le_beanstalk = zend_register_list_destructors_ex( php_beanstalk_phpstream_dtor, NULL, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, module_number );
 
-	/*
-	 * list return
-	 */
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_RETURN", TUBE_RETURN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_NOT_RETURN", TUBE_NOT_RETURN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_RETURN", RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
@@ -1945,9 +1944,6 @@ PHP_MINIT_FUNCTION(beanstalk)
 	REGISTER_LONG_CONSTANT("BEANSTALK_ASK_SERVER", ASK_SERVER, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_NOT_ASK_SERVER", NOT_ASK_SERVER, CONST_CS | CONST_PERSISTENT);
 
-	/* If you have INI entries, uncomment these lines
-	 * REGISTER_INI_ENTRIES();
-	 */
 
 
 	//BEANSTALK_G(gstream) = NULL;

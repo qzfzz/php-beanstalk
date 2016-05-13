@@ -59,6 +59,11 @@ ZEND_END_MODULE_GLOBALS(beanstalk)
    examples in any other php module directory.
 */
 
+PHP_MINIT_FUNCTION(beanstalk);
+PHP_MSHUTDOWN_FUNCTION(beanstalk);
+PHP_RINIT_FUNCTION(beanstalk);
+PHP_RSHUTDOWN_FUNCTION(beanstalk);
+PHP_MINFO_FUNCTION(beanstalk);
 
 #ifdef ZTS
 #define BEANSTALK_G(v) TSRMG(beanstalk_globals_id, zend_beanstalk_globals *, v)
