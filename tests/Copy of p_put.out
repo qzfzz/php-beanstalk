@@ -1,8 +1,0 @@
-Warning: dir(/Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/tests/Copy of p_put.php): failed to open dir: Not a directory in /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/tests/Copy of p_put.php on line 2
-
-Warning: include(/../include/config.inc): failed to open stream: No such file or directory in /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/tests/Copy of p_put.php on line 2
-
-Warning: include(): Failed opening '/../include/config.inc' for inclusion (include_path='.:') in /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/tests/Copy of p_put.php on line 2
-
-Warning: beanstalk_open(): [0] Failed to parse address "" in /Users/bruce/develop/c/php/php-5.6.13/ext/beanstalk/tests/Copy of p_put.php on line 3
-bool(false)
