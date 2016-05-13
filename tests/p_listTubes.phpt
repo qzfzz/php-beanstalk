@@ -8,15 +8,11 @@ $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 $strRet = var_export( beanstalk_listTubes( $b ), true );
 var_dump( preg_match( "/array/", $strRet ));
-beanstalk_close( $b );
 
 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 $strRet = var_export( beanstalk_listTubesWatched( $b ), true );
 var_dump( preg_match( "/array/", $strRet ));
-beanstalk_close( $b );
 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 var_dump(beanstalk_listTubeUsed( $b ));
 // var_dump( preg_match( "/array/", $strRet ));
 beanstalk_close( $b );

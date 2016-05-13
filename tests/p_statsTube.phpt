@@ -8,9 +8,7 @@ $arrConfig = include __DIR__ . '/../include/config.inc';
 
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 beanstalk_putInTube( $b, 'test-tube-a', 'test' );
-beanstalk_close( $b );
 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 $strStats = var_export( beanstalk_statsTube( $b, 'test-tube-a' ), true );
 var_dump( preg_match( "/array/", $strStats ));
 beanstalk_close( $b );

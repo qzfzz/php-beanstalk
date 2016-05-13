@@ -8,10 +8,8 @@ $arrConfig = include __DIR__ . '/../include/config.inc';
 
 $b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 beanstalk_putInTube( $b, 'test-tube-a', 'test' );
-beanstalk_close( $b );
 
 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
 var_dump( beanstalk_watch( $b, 'test-tube-a' ));
 beanstalk_close( $b );
 
