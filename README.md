@@ -1,17 +1,15 @@
 #php-beanstalk
 
-php-beanstalk是基于c开发的php的beanstalk扩展 此扩展相对php书写的客户端性能提升一倍左右 实现了对beanstalk协议的支持 目前支持php5与php7 以面向过程形式提供
+php-beanstalk is a extension of php and now support for php5 and php7. This extension have double performance than native  php client, and the extension has implement most of the beanstalk protocol. The extension is now procedure oriented.
 
-开发者: 风之前
+author: qzfzz(Bruce Tsisen)
 
 email: qzfzz@163.com
 
-php-beanstalk目前还在持续的开发和bug修复中，暂不建议用于生产中
-
-安装：
+Installation：
 
 ```
-1.    先下载(or clone)php-beanstalk
+1.    download(or clone)php-beanstalk first
 2.    $cd php-beanstalk
 3.    $phpize
 4.    $./configure
@@ -19,4 +17,5 @@ php-beanstalk目前还在持续的开发和bug修复中，暂不建议用于生�
 6.    $make install
 ```
 
-编译通过：linux/unix/osx
+compile passed：linux/unix/osx
+support php version: php5, php7
