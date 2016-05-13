@@ -46,7 +46,7 @@ extern zend_module_entry beanstalk_module_entry;
 	and END macros here:     
 */
 ZEND_BEGIN_MODULE_GLOBALS(beanstalk)
-	php_stream* gstream;
+	//php_stream* gstream;
 ZEND_END_MODULE_GLOBALS(beanstalk)
 
 /* In every utility function you add that needs to use variables 
