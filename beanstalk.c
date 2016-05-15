@@ -196,23 +196,16 @@ PHP_FUNCTION(beanstalk_close)
     {
         return;
     }
-#if PHP_API_VERSION < 20151012
-	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
 
-	if( !zStream || !pStream )
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
-		RETURN_FALSE;
-	}
+#if PHP_API_VERSION < 20151012
 	zend_hash_index_del(&EG(regular_list),Z_RESVAL_P( zStream ));
     php_stream_close( pStream );
 #else
-	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+	if( !pStream )
 	{
 		RETURN_FALSE;
 	}
     php_stream_close( pStream  );
-	//zend_hash_index_del(&EG(regular_list), pStream->res->handle);
 #endif
 
 	RETURN_TRUE;
