@@ -1,6 +1,6 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 5 and Version 7                                                    |
   +----------------------------------------------------------------------+
   | Copyright (c) 1997-2015 The PHP Group                                |
   +----------------------------------------------------------------------+
@@ -412,15 +412,20 @@ PHP_FUNCTION(beanstalk_peek)
 	}
 #endif
 
-	if( lJobID < 0 )
+	if( lJobID > 0 )
+	{
+		spprintf(&pWBuf, 0, COMMAND_PEEK " %d" CRLF, lJobID );
+		getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
+
 	}
 
-	spprintf(&pWBuf, 0, COMMAND_PEEK " %d" CRLF, lJobID );
-	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
-	efree( pWBuf );
+
 }
 
 
@@ -450,18 +455,17 @@ PHP_FUNCTION(beanstalk_peekReady)
 
 #if PHP_API_VERSION < 20151012
 	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+	if( !zStream || !pStream )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+		RETURN_FALSE;
+	}
 #else
 	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
 	{
 		RETURN_FALSE;
 	}
 #endif
-
-//	if( !zStream || !pStream )
-//	{
-//		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
-//		RETURN_FALSE;
-//	}
 
 	if( tubeLen )
 	{
@@ -498,29 +502,34 @@ PHP_FUNCTION(beanstalk_delete)
 		RETURN_FALSE;
 	}
 
-	if( lJobID <= 0 ){
+	if( lJobID > 0 )
+	{
+	#if PHP_API_VERSION < 20151012
+		ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+
+		if( !zStream || !pStream )
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+			RETURN_FALSE;
+		}
+	#else
+		if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+		{
+			RETURN_FALSE;
+		}
+	#endif
+
+		spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
 		RETURN_FALSE;
+
 	}
 
-#if PHP_API_VERSION < 20151012
-	ZEND_FETCH_RESOURCE( pStream, php_stream*, &zStream, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
-
-	if( !zStream || !pStream )
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
-		RETURN_FALSE;
-	}
-#else
-	if( !(pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
-	{
-		RETURN_FALSE;
-	}
-#endif
-
-	spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED TSRMLS_CC );
-	efree( pWBuf );
 }
 
 /**
@@ -569,14 +578,17 @@ PHP_FUNCTION(beanstalk_put)
 	}
 #endif
 
-	if( msgLen == 0 ){
+	if( msgLen )
+	{
+		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
+		getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
 		RETURN_FALSE;
 	}
-
-	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
-	efree( pWBuf );
 }
 
 
@@ -629,22 +641,25 @@ PHP_FUNCTION(beanstalk_putInTube)
 	}
 #endif
 
-	if( msgLen == 0 || iTubeLen == 0 ){
+	if( msgLen > 0 && iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			RETURN_FALSE;
+		}
+		efree( pWBuf );
+
+		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, lPri, lDelay, lTtr, msgLen, pStrMsg );
+		getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
-
-	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
-	if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
-	{
-		efree( pWBuf );
-		RETURN_FALSE;
-	}
-	efree( pWBuf );
-
-	spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, lPri, lDelay, lTtr, msgLen, pStrMsg );
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
-	efree( pWBuf );
 }
 
 
@@ -714,16 +729,18 @@ PHP_FUNCTION(beanstalk_statsJob)
 	}
 #endif
 
-	if( iJobID < 0 )
+	if( iJobID > 0 )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, iJobID );
+		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
-
-	char* pWBuf = NULL;
-	spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, iJobID );
-	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
-	efree( pWBuf );
 }
 
 /**
@@ -765,16 +782,20 @@ PHP_FUNCTION(beanstalk_statsTube)
 	}
 #endif
 
-	if( 0 == iTubeLen )
+	if( iTubeLen )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pTube );
+		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
-	char* pWBuf = NULL;
-	spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pTube );
-	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
-	efree( pWBuf );
+
 }
 
 /**
@@ -899,18 +920,20 @@ PHP_FUNCTION(beanstalk_bury)
 	}
 #endif
 
-	if( -1 == lJobID )
+	if( -1 != lJobID )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, COMMAND_BURY " %d %d" CRLF, lJobID, lPri );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
-	char* pWBuf = NULL;
-	spprintf( &pWBuf, 0, COMMAND_BURY " %d %d" CRLF, lJobID, lPri );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED TSRMLS_CC );
-
-	efree( pWBuf );
 }
 
 /**
@@ -955,22 +978,23 @@ PHP_FUNCTION(beanstalk_ignore)
 	}
 #endif
 
-	if( !iTubeLen )
+	if( iTubeLen )
 	{
-		RETURN_FALSE;
-	}
-	else
-	{
-		if( !strcmp( strTube, "default" ))
+		if( strcmp( strTube, "default" ))
+		{
+			spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, strTube );
+			getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING TSRMLS_CC );
+			efree( pWBuf );
+		}
+		else
 		{
 			RETURN_FALSE;
 		}
-
-		spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, strTube );
 	}
-
-	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING TSRMLS_CC );
-	efree( pWBuf );
+	else
+	{
+		RETURN_FALSE;
+	}
 }
 
 /**
@@ -1027,6 +1051,7 @@ static void getResponseIntData( php_stream* pStream, zval** return_value, char* 
 		if( pRes )
 		{
 			efree( pRes );
+			pRes = NULL;
 		}
 	}
 	while( ++iRetry < RETRY_TIMES );//retry three times
@@ -1080,9 +1105,7 @@ PHP_FUNCTION(beanstalk_kick)
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_KICK " %d" CRLF, lMax );
-
 	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_KICKED TSRMLS_CC );
-
 	efree( pWBuf );
 }
 
@@ -1120,17 +1143,19 @@ PHP_FUNCTION(beanstalk_kickJob)
 	}
 #endif
 
-	if( lJobID < 0 )
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_KICK_JOB " %d" CRLF, lJobID );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_KICKED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
-	spprintf( &pWBuf, 0, COMMAND_KICK_JOB " %d" CRLF, lJobID );
 
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_KICKED TSRMLS_CC );
-
-	efree( pWBuf );
 }
 
 /**
@@ -1272,10 +1297,6 @@ PHP_FUNCTION(beanstalk_listTubes)
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
 	}while( iRet && ++iTry < 3 );
 
-//	if( iRet )
-//	{
-//		RETURN_FALSE;
-//	}
 }
 
 /**
@@ -1420,18 +1441,19 @@ PHP_FUNCTION(beanstalk_pauseTube)
 	}
 #endif
 
-	if( iTubeLen < 0 )
+	if( iTubeLen > 0 )
+	{
+		if( lDelay < 0 )
+		{
+			lDelay = 0;
+		}
+		pauseResumeTube( pStream, &return_value, pStrTube, lDelay TSRMLS_CC );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
-
-	if( lDelay < 0 )
-	{
-		lDelay = 0;
-	}
-
-	pauseResumeTube( pStream, &return_value, pStrTube, lDelay TSRMLS_CC );
 }
 
 /**
@@ -1464,13 +1486,16 @@ PHP_FUNCTION(beanstalk_resumeTube)
 	}
 #endif
 
-	if( iTubeLen < 0 )
+	if( iTubeLen > 0 )
+	{
+		pauseResumeTube( pStream, &return_value, pStrTube, 0 TSRMLS_CC );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
-	pauseResumeTube( pStream, &return_value, pStrTube, 0 TSRMLS_CC );
 }
 
 /**
@@ -1512,7 +1537,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 	}
 #endif
 
-	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
+	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
 		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
@@ -1521,7 +1546,6 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 			RETURN_FALSE;
 		}
 		efree( pWBuf );
-
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_PEEK_DELAYED CRLF );
@@ -1568,7 +1592,7 @@ PHP_FUNCTION(beanstalk_peekBuried)
 	}
 #endif
 
-	if( !tubeLen && !strncmp( pTube, "default", sizeof( "default" ) - 1))
+	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
 	{
 		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
@@ -1577,13 +1601,6 @@ PHP_FUNCTION(beanstalk_peekBuried)
 			RETURN_FALSE;
 		}
 		efree( pWBuf );
-
-	}
-
-	if( !php_stream_write_string( pStream, pWBuf ))
-	{
-		php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
-		RETURN_FALSE;
 	}
 
 	spprintf( &pWBuf, 0, COMMAND_PEEK_BURIED CRLF );
@@ -1625,18 +1642,19 @@ PHP_FUNCTION(beanstalk_touch)
 	}
 #endif
 
-	if( !lJobID )
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_TOUCH " %d" CRLF, lJobID );
+
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_TOUCHED TSRMLS_CC );
+
+		efree( pWBuf );
+	}
+	else
 	{
 		//for error
 		RETURN_FALSE;
 	}
-
-
-	spprintf( &pWBuf, 0, COMMAND_TOUCH " %d" CRLF, lJobID );
-
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_TOUCHED TSRMLS_CC );
-
-	efree( pWBuf );
 }
 
 /**
@@ -1676,16 +1694,18 @@ PHP_FUNCTION(beanstalk_release)
 	}
 #endif}
 
-	if( !lJobID )
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_RELEASE " %d %d %d" CRLF, lJobID, lPri, lDelay );
+
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_RELEASED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
 	{
 		//for error
 		RETURN_FALSE;
 	}
-
-	spprintf( &pWBuf, 0, COMMAND_RELEASE " %d %d %d" CRLF, lJobID, lPri, lDelay );
-
-	getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_RELEASED TSRMLS_CC );
-	efree( pWBuf );
 
 }
 
@@ -1785,21 +1805,25 @@ PHP_FUNCTION(beanstalk_useTube)
 
 #endif
 
-	if( iTubeLen == 0)
+	if( iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, strTube );
+
+		if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			return;
+		}
+
+		efree( pWBuf );
+	}
+	else
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
 
-	spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, strTube );
 
-	if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN TSRMLS_CC ))
-	{
-		efree( pWBuf );
-		return;
-	}
-
-	efree( pWBuf );
 }
 
 /**
@@ -1847,7 +1871,11 @@ PHP_FUNCTION(beanstalk_watch)
 	}
 #endif
 
-	if( !iTubeLen )
+	if( iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, strTube );
+	}
+	else
 	{
 		if( bWatchSize )
 		{
@@ -1857,10 +1885,6 @@ PHP_FUNCTION(beanstalk_watch)
 		{
 			RETURN_TRUE;//by default watch default tube
 		}
-	}
-	else
-	{
-		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, strTube );
 	}
 
 	int iRetry = 0;
