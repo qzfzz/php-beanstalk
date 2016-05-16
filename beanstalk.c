@@ -650,7 +650,6 @@ PHP_FUNCTION(beanstalk_putInTube)
 	}
 }
 
-
 /**
  * beanstalk_status( $resource )
  * @param $resource
@@ -662,6 +661,20 @@ PHP_FUNCTION(beanstalk_stats)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pWBuf = COMMAND_STATS CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -688,6 +701,19 @@ PHP_FUNCTION(beanstalk_statsJob)
 	zval* zStream = NULL;
 	long iJobID = -1;
 
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &iJobID ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -701,6 +727,7 @@ PHP_FUNCTION(beanstalk_statsJob)
 	{
 		char* pWBuf = NULL;
 		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, iJobID );
+
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 		efree( pWBuf );
 	}
@@ -731,6 +758,19 @@ PHP_FUNCTION(beanstalk_statsTube)
 #endif
 	iTubeLen = 0;
 
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -744,6 +784,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 	{
 		char* pWBuf = NULL;
 		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pTube );
+
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 		efree( pWBuf );
 	}
@@ -1188,6 +1229,20 @@ PHP_FUNCTION(beanstalk_listTubes)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pWBuf = COMMAND_LIST_TUBES CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -1217,6 +1272,21 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pWBuf = COMMAND_LIST_TUBES_WATCHED CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "the result is not used, please remove this line from code!");
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		php_printf( "the result is not used, please remove this line from code!");
+		return;
+	}
+#endif
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
 		RETURN_FALSE;
 	}
