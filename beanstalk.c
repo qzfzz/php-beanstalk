@@ -125,7 +125,7 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
  */
 static int le_beanstalk;
 
-static int useTube( php_stream *pStream, char* pTube, zval** return_value, int bList TSRMLS_DC);
+static int useTube( php_stream *pStream, char* pTube, zval** return_value, zend_bool bList TSRMLS_DC);
 static char* explodeString( char* pStr, zval* array );
 static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value TSRMLS_DC );
 static void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC );
@@ -136,6 +136,12 @@ static void getResponseWithNoData( php_stream* pStream, zval** return_value, cha
 
 static int getStream( php_stream** pStream, zval* zStream, zval** return_value TSRMLS_DC );
     
+zend_class_entry *pBeanstalk;
+static zend_function_entry beanstalkMethods[] = {
+		{ NULL, NULL, NULL }
+};
+
+
 /* {{{ PHP_INI
  */
 /* Remove comments and fill if you need to have entries in php.ini
@@ -1311,9 +1317,9 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 }
 
 /**
- * beanstalk_listTubeUsed( $resource, $bAskServer = BEANSTALK_NOT_ASK_SERVER )
+ * beanstalk_listTubeUsed( $resource, $bAskServer = false )
  * @param $resource
- * @param $bAskServer
+ * @param $bAskServer = false
  *
  * return string or true for success others for failure
  */
@@ -1321,9 +1327,9 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	long bAskServer = 0;
+	zend_bool bAskServer = 0;
 	char* pWBuf = COMMAND_LIST_TUBE_USED CRLF;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &zStream, &bAskServer ) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|b", &zStream, &bAskServer ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -1700,16 +1706,13 @@ PHP_FUNCTION(beanstalk_useTube)
 }
 
 /**
- * beanstalk_watch( $resource, $tube = 'default', BEANSTALK_WATCH_SIZE_NOT_RETURN )
+ * beanstalk_watch( $resource, $tube = 'default', $bReturnWatchSize = false )
  *
  * @param	resource	$resource
  * @param	string		$tube
- * @param	int			$bWatchSize
+ * @param	zend_bool   $bWatchSize
  *
  * return true or watchsize for success false for error
- *
- * BEANSTALK_WATCH_SIZE_RETURN
- * BEANSTALK_WATCH_SIZE_NOT_RETURN
  */
 PHP_FUNCTION(beanstalk_watch)
 {//
@@ -1818,11 +1821,18 @@ static void php_beanstalk_phpstream_dtor(zend_resource *rsrc )
 	if( stream )
 		php_stream_close( stream );
 }
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(beanstalk)
 {
+	zend_class_entry ce;
+	INIT_CLASS_ENTRY( ce, "Beanstalk", beanstalkMethods );
+	pBeanstalk = zend_register_internal_class( &ce TSRMLS_CC );
+
+
 	le_beanstalk = zend_register_list_destructors_ex( php_beanstalk_phpstream_dtor, NULL, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, module_number );
+
 
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_RETURN", TUBE_RETURN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_NOT_RETURN", TUBE_NOT_RETURN, CONST_CS | CONST_PERSISTENT);
@@ -2034,7 +2044,7 @@ retry:
 /**
  * return 0 for success -1 for failure
  */
-static int useTube( php_stream *pStream, char* pCmd, zval** return_value, int bList TSRMLS_DC )
+static int useTube( php_stream *pStream, char* pCmd, zval** return_value, zend_bool bList TSRMLS_DC )
 {
 	int i = 0;
 

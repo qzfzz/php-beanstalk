@@ -173,13 +173,13 @@ function beanstalk_listTubes( $resource );
 function beanstalk_listTubesWatched( $resource );
 
 /**
- * beanstalk_listTubeUsed( $resource, $bAskServer = BEANSTALK_NOT_ASK_SERVER )
+ * beanstalk_listTubeUsed( $resource, $bAskServer = false )
  * @param $resource
  * @param $bAskServer
  *
  * return string or true for success others for failure
  */
-function beanstalk_listTubeUsed(  $resource, $bAskServer = 0  );
+function beanstalk_listTubeUsed(  $resource, $bAskServer = false  );
 
 /**
  * beanstalk_pauseTube( $resource, $strTube, $lDelay )
@@ -273,11 +273,11 @@ function beanstalk_useTube( $resource, $strTube );
 
 
 /**
- * beanstalk_watch( $resource, $tube = 'default', BEANSTALK_WATCH_SIZE_NOT_RETURN )
+ * beanstalk_watch( $resource, $tube = 'default', $bWatchSize = false )
  *
  * @param	resource	$resource
  * @param	string		$tube
- * @param	int			$bWatchSize
+ * @param	bool		$bWatchSize
  *
  * return true or watchsize for success false for error
  *
