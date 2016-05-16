@@ -194,7 +194,7 @@ PHP_FUNCTION(beanstalk_close)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 #if PHP_API_VERSION < 20151012
@@ -404,7 +404,7 @@ PHP_FUNCTION(beanstalk_peek)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( lJobID > 0 )
@@ -417,9 +417,7 @@ PHP_FUNCTION(beanstalk_peek)
 	{
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
-
 	}
-
 
 }
 
@@ -450,7 +448,7 @@ PHP_FUNCTION(beanstalk_peekReady)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( tubeLen )
@@ -492,7 +490,7 @@ PHP_FUNCTION(beanstalk_delete)
 	{
         if( getStream( &pStream, zStream, &return_value TSRMLS_CC  ))
         {
-            return;    
+        	RETURN_FALSE;
         }
 
 		spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
@@ -575,7 +573,7 @@ PHP_FUNCTION(beanstalk_put)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( msgLen )
@@ -628,7 +626,7 @@ PHP_FUNCTION(beanstalk_putInTube)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        ;
+        RETURN_FALSE;
     }
 
 	if( msgLen > 0 && iTubeLen > 0 )
@@ -670,7 +668,7 @@ PHP_FUNCTION(beanstalk_stats)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+        RETURN_FALSE;
     }
 
 	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
@@ -696,7 +694,7 @@ PHP_FUNCTION(beanstalk_statsJob)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( iJobID > 0 )
@@ -739,7 +737,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( iTubeLen )
@@ -867,7 +865,7 @@ PHP_FUNCTION(beanstalk_bury)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( -1 != lJobID )
@@ -915,7 +913,7 @@ PHP_FUNCTION(beanstalk_ignore)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( iTubeLen )
@@ -1026,7 +1024,7 @@ PHP_FUNCTION(beanstalk_kick)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( lMax <= 0 )
@@ -1060,7 +1058,7 @@ PHP_FUNCTION(beanstalk_kickJob)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( lJobID )
@@ -1196,7 +1194,7 @@ PHP_FUNCTION(beanstalk_listTubes)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	int iTry = 0;
@@ -1225,7 +1223,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	int iTry = 0;
@@ -1271,7 +1269,7 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	useTube( pStream, pWBuf, &return_value, bAskServer TSRMLS_CC );
@@ -1317,7 +1315,7 @@ PHP_FUNCTION(beanstalk_pauseTube)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( iTubeLen > 0 )
@@ -1352,7 +1350,7 @@ PHP_FUNCTION(beanstalk_resumeTube)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( iTubeLen > 0 )
@@ -1393,7 +1391,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
@@ -1438,7 +1436,7 @@ PHP_FUNCTION(beanstalk_peekBuried)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
     {
-        return;
+    	RETURN_FALSE;
     }
 
 	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
@@ -1478,7 +1476,7 @@ PHP_FUNCTION(beanstalk_touch)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( lJobID )
@@ -1520,7 +1518,7 @@ PHP_FUNCTION(beanstalk_release)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( lJobID )
@@ -1559,7 +1557,7 @@ PHP_FUNCTION(beanstalk_reserve)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( lTimeOut <= 0 )//reserve
@@ -1607,7 +1605,7 @@ PHP_FUNCTION(beanstalk_useTube)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( iTubeLen > 0 )
@@ -1663,7 +1661,7 @@ PHP_FUNCTION(beanstalk_watch)
 
     if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
     {
-        return;
+        RETURN_FALSE;
     }
 
 	if( iTubeLen > 0 )
