@@ -133,7 +133,7 @@ static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pSt
 static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC );
 static void getResponseIntData( php_stream* pStream, zval** return_value, char* pCmd, int iType TSRMLS_DC);
 static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType TSRMLS_DC );
-static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS TSRMLS_DC );
+static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS );
 
 zend_class_entry *pBeanstalk;
 static zend_function_entry beanstalkMethods[] = {
@@ -350,7 +350,7 @@ PHP_FUNCTION(beanstalk_close)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -501,7 +501,7 @@ PHP_FUNCTION(beanstalk_peek)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -564,7 +564,7 @@ PHP_FUNCTION(beanstalk_peekReady)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -624,7 +624,7 @@ PHP_FUNCTION(beanstalk_delete)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -700,7 +700,7 @@ PHP_FUNCTION(beanstalk_put)
 		}
 	}
 
-    if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+    if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
     {
         RETURN_FALSE;
     }
@@ -773,7 +773,7 @@ PHP_FUNCTION(beanstalk_putInTube)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -839,7 +839,7 @@ PHP_FUNCTION(beanstalk_stats)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -899,7 +899,7 @@ PHP_FUNCTION(beanstalk_statsJob)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -976,7 +976,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1121,7 +1121,7 @@ PHP_FUNCTION(beanstalk_bury)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1187,7 +1187,7 @@ PHP_FUNCTION(beanstalk_ignore)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1317,7 +1317,7 @@ PHP_FUNCTION(beanstalk_kick)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1371,7 +1371,7 @@ PHP_FUNCTION(beanstalk_kickJob)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1530,7 +1530,7 @@ PHP_FUNCTION(beanstalk_listTubes)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1583,7 +1583,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1648,7 +1648,7 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 		return;
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1712,7 +1712,7 @@ PHP_FUNCTION(beanstalk_pauseTube)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1770,7 +1770,7 @@ PHP_FUNCTION(beanstalk_resumeTube)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1831,7 +1831,7 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1896,7 +1896,7 @@ PHP_FUNCTION(beanstalk_peekBuried)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -1956,7 +1956,7 @@ PHP_FUNCTION(beanstalk_touch)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -2018,7 +2018,7 @@ PHP_FUNCTION(beanstalk_release)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -2075,7 +2075,7 @@ PHP_FUNCTION(beanstalk_reserve)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -2141,7 +2141,7 @@ PHP_FUNCTION(beanstalk_useTube)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -2209,7 +2209,7 @@ PHP_FUNCTION(beanstalk_watch)
 		}
 	}
 
-	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	if( getStream( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU ) )
 	{
 		RETURN_FALSE;
 	}
@@ -2522,7 +2522,7 @@ retry:
 /**
  * get php_stream
  */
-static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS TSRMLS_DC )
+static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS )
 {//INTERNAL_FUNCTION_PARAM_PASSTHRU
 	zval *resource;
 
