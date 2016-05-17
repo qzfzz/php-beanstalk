@@ -1,6 +1,6 @@
 /*
   +----------------------------------------------------------------------+
-  | PHP Version 5                                                        |
+  | PHP Version 5  and Version 7                                                    |
   +----------------------------------------------------------------------+
   | Copyright (c) 1997-2015 The PHP Group                                |
   +----------------------------------------------------------------------+
@@ -64,6 +64,37 @@ PHP_MSHUTDOWN_FUNCTION(beanstalk);
 PHP_RINIT_FUNCTION(beanstalk);
 PHP_RSHUTDOWN_FUNCTION(beanstalk);
 PHP_MINFO_FUNCTION(beanstalk);
+//PHP_METHOD(Beanstalk,__construct);
+PHP_METHOD(Beanstalk,connect);
+PHP_FUNCTION(beanstalk_connect2);
+PHP_FUNCTION(beanstalk_close2);
+PHP_FUNCTION(beanstalk_put2);
+PHP_FUNCTION(beanstalk_close2);
+PHP_FUNCTION(beanstalk_peekReady2);
+PHP_FUNCTION(beanstalk_peek2);
+PHP_FUNCTION(beanstalk_delete2);
+PHP_FUNCTION(beanstalk_stats2);
+PHP_FUNCTION(beanstalk_bury2);
+PHP_FUNCTION(beanstalk_ignore2);
+PHP_FUNCTION(beanstalk_kick2);
+PHP_FUNCTION(beanstalk_kickJob2);
+PHP_FUNCTION(beanstalk_listTubes2);
+PHP_FUNCTION(beanstalk_listTubesWatched2);
+PHP_FUNCTION(beanstalk_listTubeUsed2);
+PHP_FUNCTION(beanstalk_pauseTube2);
+PHP_FUNCTION(beanstalk_resumeTube2);
+PHP_FUNCTION(beanstalk_peekDelayed2);
+PHP_FUNCTION(beanstalk_peekBuried2);
+PHP_FUNCTION(beanstalk_putInTube2);
+PHP_FUNCTION(beanstalk_release2);
+PHP_FUNCTION(beanstalk_reserve2);
+//PHP_FUNCTION(beanstalk_reserveFromTube);
+PHP_FUNCTION(beanstalk_statsJob2);
+PHP_FUNCTION(beanstalk_statsTube2);
+PHP_FUNCTION(beanstalk_touch2);
+PHP_FUNCTION(beanstalk_useTube2);
+PHP_FUNCTION(beanstalk_watch2);
+
 
 #ifdef ZTS
 #define BEANSTALK_G(v) TSRMG(beanstalk_globals_id, zend_beanstalk_globals *, v)

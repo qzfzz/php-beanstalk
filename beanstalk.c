@@ -125,7 +125,7 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
  */
 static int le_beanstalk;
 
-static int useTube( php_stream *pStream, char* pTube, zval** return_value, zend_bool bList TSRMLS_DC);
+static int useTube( php_stream *pStream, char* pStrTube, zval** return_value, zend_bool bList TSRMLS_DC);
 static char* explodeString( char* pStr, zval* array );
 static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_value TSRMLS_DC );
 static void getResponseComplexData( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC );
@@ -135,9 +135,39 @@ static void getResponseIntData( php_stream* pStream, zval** return_value, char* 
 static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType TSRMLS_DC );
 
 static int getStream( php_stream** pStream, zval* zStream, zval** return_value TSRMLS_DC );
-    
+static int getStream2( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS TSRMLS_DC );
+
 zend_class_entry *pBeanstalk;
 static zend_function_entry beanstalkMethods[] = {
+//		PHP_ME(Beanstalk, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
+//		PHP_ME(Beanstalk, connect, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
+		PHP_FALIAS(connect,				beanstalk_connect2,	NULL)
+		PHP_FALIAS(close,				beanstalk_close2,	NULL)
+		PHP_FALIAS(put,					beanstalk_put2,		NULL)
+		PHP_FALIAS(peek,				beanstalk_peek2,	NULL)
+		PHP_FALIAS(peekReady,			beanstalk_peekReady2,	NULL)
+		PHP_FALIAS(delete,				beanstalk_delete2, NULL)
+		PHP_FALIAS(stats,				beanstalk_stats2, NULL)
+		PHP_FALIAS(bury,				beanstalk_bury2, NULL)
+		PHP_FALIAS(ignore,				beanstalk_ignore2, NULL)
+		PHP_FALIAS(kick,				beanstalk_kick2, NULL)
+		PHP_FALIAS(kickJob, 			beanstalk_kickJob2, NULL)
+		PHP_FALIAS(listTubes, 			beanstalk_listTubes2, NULL)
+		PHP_FALIAS(listTubesWatched, 	beanstalk_listTubesWatched2, NULL)
+		PHP_FALIAS(listTubeUsed, 		beanstalk_listTubeUsed2, NULL)
+		PHP_FALIAS(pauseTube, 			beanstalk_pauseTube2, NULL)
+		PHP_FALIAS(resumeTube, 			beanstalk_resumeTube2, NULL)
+		PHP_FALIAS(peekDelayed, 		beanstalk_peekDelayed2, NULL)
+		PHP_FALIAS(peekBuried,			beanstalk_peekBuried2, NULL)
+		PHP_FALIAS(putInTube, 			beanstalk_putInTube2, NULL)
+		PHP_FALIAS(release, 			beanstalk_release2, NULL)
+		PHP_FALIAS(reserve, 			beanstalk_reserve2, NULL)
+		//PHP_FALIAS(beanstalk_reserveFromTube, NULL)
+		PHP_FALIAS(statsJob, 			beanstalk_statsJob2, NULL)
+		PHP_FALIAS(statsTube, 			beanstalk_statsTube2, NULL)
+		PHP_FALIAS(touch, 				beanstalk_touch2, NULL)
+		PHP_FALIAS(useTube, 			beanstalk_useTube2, NULL)
+		PHP_FALIAS(watch, 				beanstalk_watch2, NULL)
 		{ NULL, NULL, NULL }
 };
 
@@ -180,6 +210,214 @@ PHP_INI_END()
 */
 
 /**
+ * __construct( $host, $port )
+ */
+//PHP_METHOD(Beanstalk,__construct)
+//{
+//	zval *host, *port;
+//	zend_class_entry *pB = Z_OBJCE_P( getThis());
+//
+//	if( zend_parse_parameters( ZEND_NUM_ARGS() TSRMLS_CC, "|zz!", &host, &port ) == FAILURE )
+//	{
+//		php_printf( "Error occur!" );
+//		RETURN_NULL();
+//	}
+//
+//	zend_update_property( pB, getThis(), "host", sizeof( "host" ) - 1, host TSRMLS_CC );
+//	zend_update_property( pB, getThis(), "host", sizeof( "host" ) - 1, host TSRMLS_CC );
+//}
+
+PHP_METHOD(Beanstalk,connect)
+{
+
+}
+
+/**
+ * beanstalk_connect( $host = '127.0.0.1', $port = 11300 )
+ * @param $host
+ * @param $port
+ *
+ * return source id for success false for failure
+ */
+PHP_FUNCTION(beanstalk_connect2)
+{
+    char *host = "127.0.0.1", *transport, *errstr = NULL;
+	int host_len = sizeof( "127.0.0.1" ) - 1, transport_len, implicit_tcp = 1, errcode = 0;
+	zend_class_entry *pB = getThis();
+
+    int flags = STREAM_XPORT_CLIENT | STREAM_XPORT_CONNECT;
+	php_stream* pStream = NULL;
+
+#if PHP_API_VERSION < 20151012
+	int iHostLen = -1;
+	int options = ENFORCE_SAFE_MODE;
+#else
+	size_t iHostLen = -1;
+	int options = 0;
+#endif
+
+	long lPort = 11300;//default 11300
+	char* pWBuf = NULL;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sl", &host, &iHostLen, &lPort ) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+	if( iHostLen != host_len )
+	{
+		host_len = iHostLen;
+	}
+
+	if(lPort)
+	{
+		int implicit_tcp = 1;
+
+		if (strstr(host, "://"))
+		{
+			implicit_tcp = 0;
+		}
+
+		transport_len = spprintf(&transport, 0, "%s%s:%d",
+				implicit_tcp ? "tcp://" : "", host, lPort);
+	}
+	else
+	{
+		transport = host;
+		transport_len = host_len;
+	}
+
+	pStream = php_stream_xport_create( transport, transport_len,
+			options, flags,
+			NULL, NULL, NULL, &errstr, &errcode);
+
+	if( errstr )
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING, "[%d] %s", errcode, errstr);
+	    efree(errstr);
+	}
+
+	if( !pStream )
+	{
+		RETURN_FALSE;
+	}
+
+//	BEANSTALK_G(gstream) = pStream;
+
+	zval* connection;
+
+#if PHP_API_VERSION < 20151012
+	ALLOC_INIT_ZVAL(connection);
+	ZEND_REGISTER_RESOURCE(connection,pStream,le_beanstalk);
+#else
+//	RETURN_RES( zend_register_resource( pStream, le_beanstalk ));
+	ZVAL_RESOURCE(connection, zend_register_resource( pStream, le_beanstalk ) );
+#endif
+
+	if( !pB )
+	{
+		object_init_ex( return_value, pBeanstalk );
+		add_property_zval( return_value, "connection", connection );
+//		add_property_long(return_value, "age", 3 );
+	}
+	else
+	{
+		add_property_zval( pB, "connection", connection );
+//		add_property_long( pB, "age", 4 );
+		RETURN_ZVAL( pB, 1, 0 );
+	}
+}
+
+
+
+
+static int getStream2( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTION_PARAMETERS TSRMLS_DC )
+{//INTERNAL_FUNCTION_PARAM_PASSTHRU
+	zval *resource;
+
+	zend_class_entry *ce = Z_OBJCE_P( beanstalkObj );
+	resource = zend_read_property( ce, beanstalkObj, "connection", sizeof( "connection" ) - 1, 0 TSRMLS_CC );
+
+	if( resource )
+	{
+	#if PHP_API_VERSION < 20151012
+		ZEND_FETCH_RESOURCE_NO_RETURN( *pStream, php_stream*, &resource, -1, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk );
+
+		if( !*pStream )
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the first param!");
+
+			ZVAL_FALSE( return_value );
+			return -1;
+		}
+	#else
+		if( !(*pStream = (php_stream*)zend_fetch_resource(Z_RES_P(zStream), PHP_DESCRIPTOR_BEANSTALK_RES_NAME, le_beanstalk)))
+		{
+			ZVAL_FALSE( return_value );
+			return -1;
+		}
+	#endif
+
+		return 0;
+	}
+
+	return -1;
+}
+
+
+
+
+
+/**
+ * beanstalk_close( $resource )
+ *
+ * @param resource $resource
+ *
+ * return true for success false for failure
+ */
+PHP_FUNCTION(beanstalk_close2)
+{
+	php_stream *pStream;
+	zval *resource;
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &beanstalkObj, pBeanstalk ) == FAILURE) {
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid resource provided");
+
+			RETURN_FALSE;
+		}
+	}
+
+	zend_class_entry *ce = Z_OBJCE_P( beanstalkObj );
+	resource = zend_read_property( ce, beanstalkObj, "connection", sizeof( "connection" ) - 1, 0 TSRMLS_CC );
+
+	if( resource )
+	{
+	    if( getStream( &pStream, resource, &return_value TSRMLS_CC ))
+	    {
+	        RETURN_FALSE;
+	    }
+		#if PHP_API_VERSION < 20151012
+		//	zend_hash_index_del(&EG(regular_list),Z_RESVAL_P( zStream ));
+			php_stream_close( pStream );
+		#else
+			if( !pStream )
+			{
+				RETURN_FALSE;
+			}
+			php_stream_close( pStream  );
+		#endif
+
+			RETURN_TRUE;
+	}
+
+	RETURN_FALSE;
+}
+
+
+
+
+/**
  * beanstalk_close( $resource )
  *
  * @param resource $resource
@@ -218,13 +456,13 @@ PHP_FUNCTION(beanstalk_close)
 }
 
 /**
- * beanstalk_open( $host = '127.0.0.1', $port = 11300 )
+ * beanstalk_connect( $host = '127.0.0.1', $port = 11300 )
  * @param $host
  * @param $port
  *
  * return source id for success false for failure
  */
-PHP_FUNCTION(beanstalk_open)
+PHP_FUNCTION(beanstalk_connect)
 {
     char *host = "127.0.0.1", *transport, *errstr = NULL;
 	int host_len = sizeof( "127.0.0.1" ) - 1, transport_len, implicit_tcp = 1, errcode = 0;
@@ -397,6 +635,60 @@ static void getResponseComplexData(
  *
  * return false for error string data for success
  */
+PHP_FUNCTION(beanstalk_peek2)
+{
+	php_stream* pStream = NULL;
+	long lJobID = -1;
+	char* pWBuf = NULL;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Ol",
+				&beanstalkObj, pBeanstalk, &lJobID) == FAILURE)
+		{
+			php_error_docref( NULL TSRMLS_CC, E_WARNING, "Invalid parameters" );
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+	if( lJobID > 0 )
+	{
+		spprintf(&pWBuf, 0, COMMAND_PEEK " %d" CRLF, lJobID );
+		getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+
+}
+
+
+/**
+ * beanstalk_peek( $resource, $lJobID )
+ * @param $resource		resource id
+ * @param $lJodID		job id
+ *
+ * return false for error string data for success
+ */
 PHP_FUNCTION(beanstalk_peek)
 {
 	php_stream* pStream = NULL;
@@ -429,37 +721,64 @@ PHP_FUNCTION(beanstalk_peek)
 
 
 /**
- * beanstalk_peek( $resource, $strTube = 'default' )
+ * beanstalk_peek( $resource, $pStrTube = 'default' )
  * @param $resource		resource id
- * @param $strTube		tube name
+ * @param $pStrTube		tube name
  *
  * return array data for success others for failure
  */
-PHP_FUNCTION(beanstalk_peekReady)
+PHP_FUNCTION(beanstalk_peekReady2)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* pTube = "default";
+	char* pStrTube = "default";
 #if PHP_API_VERSION < 20151012
 	int
 #else
 	size_t
 #endif
-	tubeLen = 0;
+	iTubeLen = 0;
 
 	char* pWBuf = NULL;//COMMAND_PEEK_READY CRLF;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|s", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
 		RETURN_FALSE;
 	}
 
-    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
-    {
-        RETURN_FALSE;
-    }
-
-	if( tubeLen )
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
+//
+	if( iTubeLen )
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
 
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
@@ -474,6 +793,116 @@ PHP_FUNCTION(beanstalk_peekReady)
 	efree( pWBuf );
 }
 
+
+/**
+ * beanstalk_peek( $resource, $pStrTube = 'default' )
+ * @param $resource		resource id
+ * @param $pStrTube		tube name
+ *
+ * return array data for success others for failure
+ */
+PHP_FUNCTION(beanstalk_peekReady)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = "default";
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+
+	char* pWBuf = NULL;//COMMAND_PEEK_READY CRLF;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+    {
+        RETURN_FALSE;
+    }
+
+	if( iTubeLen )
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
+
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			RETURN_FALSE;
+		}
+		efree( pWBuf );
+	}
+
+	spprintf( &pWBuf, 0, COMMAND_PEEK_READY CRLF );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
+	efree( pWBuf );
+}
+
+/**
+ * beanstalk_delete( $resource, $jobID )
+ * @param $resource
+ * @param $jobID
+ *
+ * return true for success false for failue
+ * delete jobid\r\n
+ */
+PHP_FUNCTION(beanstalk_delete2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = 0;
+	char* pWBuf;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol", &beanstalkObj, pBeanstalk, &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC  ))
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( lJobID > 0 )
+	{
+		spprintf(&pWBuf, 0, "delete %d\r\n", lJobID );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_DELETED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
+		RETURN_FALSE;
+	}
+
+}
 /**
  * beanstalk_delete( $resource, $jobID )
  * @param $resource
@@ -546,6 +975,82 @@ static int getStream( php_stream** pStream, zval* zStream, zval** return_value T
 }
 
 
+
+/**
+ * beanstalk_put( $beanstalkResource, $strMsg, $iPri = 1024, $iDelay = 0, $iTtr = 60 )
+ *
+ * @param resource 	$beanstalkResource
+ * @param string 	$data	The job data
+ * @param int    	$iPri	From 0 (most urgent) to 0xFFFFFFFF (least urgent)
+ * @param int    	$iDelay	Seconds to wait before job becomes ready
+ * @param int    	$iTtr	Time To Run: seconds a job can be reserved for
+ *
+ * return jobID for success false for failure;
+ */
+PHP_FUNCTION(beanstalk_put2)
+{
+	php_stream* pStream = NULL;
+	char* pStr = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	msgLen = 0;
+	long iPri = 1024;
+	long iDelay = 0;
+	long iTtr = 60;
+
+	char* pWBuf;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Os|lll",
+				&beanstalkObj,
+				pBeanstalk,
+				&pStr,
+				&msgLen,
+				&iPri,
+				&iDelay,
+				&iTtr ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &pStr, &msgLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+    if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+    {
+        RETURN_FALSE;
+    }
+
+	if( msgLen )
+	{
+		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
+		getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the second param!");
+		RETURN_FALSE;
+	}
+}
+
+
+
 /**
  * beanstalk_put( $beanstalkResource, $strMsg, $iPri = 1024, $iDelay = 0, $iTtr = 60 )
  *
@@ -596,9 +1101,8 @@ PHP_FUNCTION(beanstalk_put)
 }
 
 
-
 /**
- * beanstalk_putInTube( $resource, $strTube, $strMsg, $lPri, $lDelay, $lTtr )
+ * beanstalk_putInTube( $resource, $pStrTube, $strMsg, $lPri, $lDelay, $lTtr )
  *
  * @param resource	$id;
  * @param string 	$tube;
@@ -609,12 +1113,12 @@ PHP_FUNCTION(beanstalk_put)
  *
  * return job id or false for error
  */
-PHP_FUNCTION(beanstalk_putInTube)
+PHP_FUNCTION(beanstalk_putInTube2)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	char* pStrMsg = NULL;
-	char* pTube = NULL;
+	char* pStrTube = NULL;
 #if PHP_API_VERSION < 20151012
 	int iTubeLen = 0, msgLen = 0;
 #else
@@ -626,18 +1130,46 @@ PHP_FUNCTION(beanstalk_putInTube)
 	long lTtr = 60;
 	char* pWBuf;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rss|lll", &zStream, &pTube, &iTubeLen, &pStrMsg, &msgLen ) == FAILURE) {
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Oss|lll", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen, &pStrMsg, &msgLen,
+				&lPri, &lDelay, &lTtr ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss|lll", &pStrTube, &iTubeLen, &pStrMsg, &msgLen,
+				&lPri, &lDelay, &lTtr ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
 		RETURN_FALSE;
 	}
 
-    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
-    {
-        RETURN_FALSE;
-    }
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rss|lll", &zStream, &pStrTube, &iTubeLen, &pStrMsg, &msgLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
 
 	if( msgLen > 0 && iTubeLen > 0 )
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
@@ -655,6 +1187,132 @@ PHP_FUNCTION(beanstalk_putInTube)
 		RETURN_FALSE;
 	}
 }
+
+
+
+/**
+ * beanstalk_putInTube( $resource, $pStrTube, $strMsg, $lPri, $lDelay, $lTtr )
+ *
+ * @param resource	$id;
+ * @param string 	$tube;
+ * @param string	$message;
+ * @param long		$privilege
+ * @param long		$delay
+ * @param long		$ttr
+ *
+ * return job id or false for error
+ */
+PHP_FUNCTION(beanstalk_putInTube)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrMsg = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int iTubeLen = 0, msgLen = 0;
+#else
+	size_t iTubeLen = 0, msgLen = 0;
+#endif
+
+	long lPri = 1024;
+	long lDelay = 0;
+	long lTtr = 60;
+	char* pWBuf;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rss|lll", &zStream, &pStrTube, &iTubeLen, &pStrMsg, &msgLen ) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+    {
+        RETURN_FALSE;
+    }
+
+	if( msgLen > 0 && iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			RETURN_FALSE;
+		}
+		efree( pWBuf );
+
+		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, lPri, lDelay, lTtr, msgLen, pStrMsg );
+		getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+}
+
+
+/**
+ * beanstalk_status( $resource )
+ * @param $resource
+ *
+ * return stats array
+ */
+PHP_FUNCTION(beanstalk_stats2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pWBuf = COMMAND_STATS CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//        RETURN_FALSE;
+//    }
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O", &beanstalkObj, pBeanstalk ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+//	else
+//	{//oo
+//		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &pStrTube, &iTubeLen ) == FAILURE)
+//		{
+//			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+//
+//			RETURN_FALSE;
+//		}
+//	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
+}
+
 
 /**
  * beanstalk_status( $resource )
@@ -693,6 +1351,7 @@ PHP_FUNCTION(beanstalk_stats)
 	getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 }
 
+
 /**
  * beanstalk_statsJob( $resource, $lJobID )
  *
@@ -701,11 +1360,11 @@ PHP_FUNCTION(beanstalk_stats)
  *
  * return false for failure job's status array
  */
-PHP_FUNCTION(beanstalk_statsJob)
+PHP_FUNCTION(beanstalk_statsJob2)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	long iJobID = -1;
+	long lJobID = -1;
 
 #if PHP_API_VERSION < 20151012
 	if (!return_value_used)
@@ -720,7 +1379,85 @@ PHP_FUNCTION(beanstalk_statsJob)
 	}
 #endif
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &iJobID ) == FAILURE) {
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol", &beanstalkObj, pBeanstalk, &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//        RETURN_FALSE;
+//    }
+
+	if( lJobID > 0 )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, lJobID );
+
+		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+}
+
+
+/**
+ * beanstalk_statsJob( $resource, $lJobID )
+ *
+ * @param $resource
+ * @param $lJobID
+ *
+ * return false for failure job's status array
+ */
+PHP_FUNCTION(beanstalk_statsJob)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = -1;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -729,10 +1466,10 @@ PHP_FUNCTION(beanstalk_statsJob)
         RETURN_FALSE;
     }
 
-	if( iJobID > 0 )
+	if( lJobID > 0 )
 	{
 		char* pWBuf = NULL;
-		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, iJobID );
+		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, lJobID );
 
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 		efree( pWBuf );
@@ -745,18 +1482,18 @@ PHP_FUNCTION(beanstalk_statsJob)
 }
 
 /**
- * beanstalk_statsTube( $resource, $strTube )
+ * beanstalk_statsTube( $resource, $pStrTube )
  *
  * @param $resource
- * @param $strTube tube name
+ * @param $pStrTube tube name
  *
  * return tube's status array for success false for failure
  */
-PHP_FUNCTION(beanstalk_statsTube)
+PHP_FUNCTION(beanstalk_statsTube2)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* pTube = NULL;
+	char* pStrTube = NULL;
 #if PHP_API_VERSION < 20151012
 	int
 #else
@@ -777,7 +1514,89 @@ PHP_FUNCTION(beanstalk_statsTube)
 	}
 #endif
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pTube, &iTubeLen ) == FAILURE) {
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Os", &beanstalkObj, pBeanstalk, &pStrTube ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( iTubeLen )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pStrTube );
+
+		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+}
+
+/**
+ * beanstalk_statsTube( $resource, $pStrTube )
+ *
+ * @param $resource
+ * @param $pStrTube tube name
+ *
+ * return tube's status array for success false for failure
+ */
+PHP_FUNCTION(beanstalk_statsTube)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -789,7 +1608,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 	if( iTubeLen )
 	{
 		char* pWBuf = NULL;
-		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pTube );
+		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pStrTube );
 
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
 		efree( pWBuf );
@@ -899,6 +1718,73 @@ static void getResponseWithNoData( php_stream* pStream, zval** return_value, cha
  *
  * return false for failure true for success
  */
+PHP_FUNCTION(beanstalk_bury2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = -1;
+	long lPri = 1024;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol|l", &beanstalkObj, pBeanstalk, &lJobID, &lPri ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|l", &lJobID, &lPri ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|l", &zStream, &lJobID, &lPri ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( -1 != lJobID )
+	{
+		char* pWBuf = NULL;
+		spprintf( &pWBuf, 0, COMMAND_BURY " %d %d" CRLF, lJobID, lPri );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+
+
+}
+
+/**
+ * beanstalk_bury( $resource, $lJobID, $lPri = 1024 )
+ *
+ * @param $resource
+ * @param $lJobID
+ * @param $lPri = 1024
+ *
+ * return false for failure true for success
+ */
 PHP_FUNCTION(beanstalk_bury)
 {
 	php_stream* pStream = NULL;
@@ -932,10 +1818,88 @@ PHP_FUNCTION(beanstalk_bury)
 }
 
 /**
- * beanstalk_ignore( $resource, $strTube )
+ * beanstalk_ignore( $resource, $pStrTube )
  *
  * @param resource	$resource
- * @param string	$strTube
+ * @param string	$pStrTube
+ *
+ * return:
+ * integers for watched size
+ * false for error
+ */
+PHP_FUNCTION(beanstalk_ignore2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+	char* pWBuf = NULL;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Os", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( iTubeLen )
+	{
+		if( strcmp( pStrTube, "default" ))
+		{
+			spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, pStrTube );
+			getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING TSRMLS_CC );
+			efree( pWBuf );
+		}
+		else
+		{
+			RETURN_FALSE;
+		}
+	}
+	else
+	{
+		RETURN_FALSE;
+	}
+}
+
+/**
+ * beanstalk_ignore( $resource, $pStrTube )
+ *
+ * @param resource	$resource
+ * @param string	$pStrTube
  *
  * return:
  * integers for watched size
@@ -945,7 +1909,7 @@ PHP_FUNCTION(beanstalk_ignore)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* strTube = NULL;
+	char* pStrTube = NULL;
 #if PHP_API_VERSION < 20151012
 	int
 #else
@@ -954,7 +1918,7 @@ PHP_FUNCTION(beanstalk_ignore)
 	iTubeLen = 0;
 	char* pWBuf = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &strTube, &iTubeLen ) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -965,9 +1929,9 @@ PHP_FUNCTION(beanstalk_ignore)
 
 	if( iTubeLen )
 	{
-		if( strcmp( strTube, "default" ))
+		if( strcmp( pStrTube, "default" ))
 		{
-			spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, strTube );
+			spprintf( &pWBuf, 0, COMMAND_IGNORE " %s" CRLF, pStrTube );
 			getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_WATCHING TSRMLS_CC );
 			efree( pWBuf );
 		}
@@ -1058,6 +2022,68 @@ static void getResponseIntData( php_stream* pStream, zval** return_value, char* 
  *
  * return false for error others for kicked jobs
  */
+PHP_FUNCTION(beanstalk_kick2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lMax = 30;
+	char* pWBuf = NULL;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol", &beanstalkObj, pBeanstalk, &lMax ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lMax ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lMax ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( lMax <= 0 )
+	{
+		lMax = 30;
+	}
+
+	spprintf( &pWBuf, 0, COMMAND_KICK " %d" CRLF, lMax );
+	getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_KICKED TSRMLS_CC );
+	efree( pWBuf );
+}
+
+
+/**
+ * beanstalk_kick( $resource, $max = 30 )
+ *
+ * @param	resource	$resource
+ * @param 	int			$max
+ *
+ * return false for error others for kicked jobs
+ */
 PHP_FUNCTION(beanstalk_kick)
 {
 	php_stream* pStream = NULL;
@@ -1084,11 +2110,78 @@ PHP_FUNCTION(beanstalk_kick)
 	efree( pWBuf );
 }
 
+
 /**
- * beanstalk_kickJob( $resource, $iJobID )
+ * beanstalk_kickJob( $resource, $lJobID )
  *
  * @param	resource	$resource
- * @param	int			$iJobID
+ * @param	int			$lJobID
+ *
+ * return true for success false for error or not found etc.
+ */
+PHP_FUNCTION(beanstalk_kickJob2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = -1;
+	char* pWBuf = NULL;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol", &beanstalkObj, pBeanstalk, &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_KICK_JOB " %d" CRLF, lJobID );
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_KICKED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+
+
+}
+
+/**
+ * beanstalk_kickJob( $resource, $lJobID )
+ *
+ * @param	resource	$resource
+ * @param	int			$lJobID
  *
  * return true for success false for error or not found etc.
  */
@@ -1224,6 +2317,69 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 	return -1;
 }
 
+
+/**
+ * beanstalk_listTubes( $resource )
+ * @param $resource
+ *
+ * return array for success false for failure
+ */
+PHP_FUNCTION(beanstalk_listTubes2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pWBuf = COMMAND_LIST_TUBES CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "%s\r\n", "the return result is not used, please remove this line from code!" );
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		return;
+	}
+#endif
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O", &beanstalkObj, pBeanstalk ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	int iTry = 0;
+	int iRet = 0;
+	do
+	{
+		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
+	}while( iRet && ++iTry < 3 );
+
+}
+
+
 /**
  * beanstalk_listTubes( $resource )
  * @param $resource
@@ -1264,6 +2420,72 @@ PHP_FUNCTION(beanstalk_listTubes)
 	{
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
 	}while( iRet && ++iTry < 3 );
+
+}
+
+/**
+ * beanstalk_listTubes( $resource )
+ * @param $resource
+ *
+ * return array for success false for failure
+ */
+PHP_FUNCTION(beanstalk_listTubesWatched2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pWBuf = COMMAND_LIST_TUBES_WATCHED CRLF;
+
+#if PHP_API_VERSION < 20151012
+	if (!return_value_used)
+	{
+		php_printf( "the result is not used, please remove this line from code!");
+		return;
+	}
+#else
+	if (!USED_RET())
+	{
+		php_printf( "the result is not used, please remove this line from code!");
+		return;
+	}
+#endif
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r", &zStream ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O", &beanstalkObj, pBeanstalk ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+	int iTry = 0;
+	int iRet = 0;
+	do
+	{
+		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
+	}while( ++iTry < 3 );
+
+	if( iRet )
+	{
+		RETURN_FALSE;
+	}
 
 }
 
@@ -1323,12 +2545,87 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
  *
  * return string or true for success others for failure
  */
+PHP_FUNCTION(beanstalk_listTubeUsed2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	zend_bool bAskServer = 0;
+	char* pWBuf = COMMAND_LIST_TUBE_USED CRLF;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|b", &beanstalkObj, pBeanstalk, &bAskServer ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|b", &bAskServer ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( !bAskServer )
+	{
+#if PHP_API_VERSION < 20151012
+		RETURN_STRING( "default", 1 );
+#else
+		RETURN_STRING( "default" );
+#endif
+		return;
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|b", &zStream, &bAskServer ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//	if( !bAskServer )
+//	{
+//#if PHP_API_VERSION < 20151012
+//		RETURN_STRING( "default", 1 );
+//#else
+//		RETURN_STRING( "default" );
+//#endif
+//		return;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	useTube( pStream, pWBuf, &return_value, bAskServer TSRMLS_CC );
+
+}
+
+/**
+ * beanstalk_listTubeUsed( $resource, $bAskServer = false )
+ * @param $resource
+ * @param $bAskServer = false
+ *
+ * return string or true for success others for failure
+ */
 PHP_FUNCTION(beanstalk_listTubeUsed)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
 	zend_bool bAskServer = 0;
 	char* pWBuf = COMMAND_LIST_TUBE_USED CRLF;
+
 	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|b", &zStream, &bAskServer ) == FAILURE) {
 		RETURN_FALSE;
 	}
@@ -1364,10 +2661,83 @@ static void pauseResumeTube( php_stream* pStream, zval** return_value, char* pSt
 }
 
 /**
- * beanstalk_pauseTube( $resource, $strTube, $lDelay )
+ * beanstalk_pauseTube( $resource, $pStrTube, $lDelay )
  *
  * @param $resource
- * @param $strTube tube name
+ * @param $pStrTube tube name
+ * @param $lDelay delay for pause
+ *
+ * return false for failure true for success
+ */
+PHP_FUNCTION(beanstalk_pauseTube2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = -1;
+	long lDelay = 0;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Osl", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen, &lDelay ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sl", &pStrTube, &iTubeLen, &lDelay ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rsl", &zStream, &pStrTube, &iTubeLen, &lDelay ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( iTubeLen > 0 )
+	{
+		if( lDelay < 0 )
+		{
+			lDelay = 0;
+		}
+		pauseResumeTube( pStream, &return_value, pStrTube, lDelay TSRMLS_CC );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+}
+
+/**
+ * beanstalk_pauseTube( $resource, $pStrTube, $lDelay )
+ *
+ * @param $resource
+ * @param $pStrTube tube name
  * @param $lDelay delay for pause
  *
  * return false for failure true for success
@@ -1410,10 +2780,69 @@ PHP_FUNCTION(beanstalk_pauseTube)
 }
 
 /**
- *	beanstalk_resumeTube( $resource, $strTube )
+ *	beanstalk_resumeTube( $resource, $pStrTube )
  *
  *	@param $resource
- *	@param $strTube tube name
+ *	@param $pStrTube tube name
+ *
+ *	return false for success true for success
+ */
+PHP_FUNCTION(beanstalk_resumeTube2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+	size_t iTubeLen = -1;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Os", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( iTubeLen > 0 )
+	{
+		pauseResumeTube( pStream, &return_value, pStrTube, 0 TSRMLS_CC );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+
+}
+
+/**
+ *	beanstalk_resumeTube( $resource, $pStrTube )
+ *
+ *	@param $resource
+ *	@param $pStrTube tube name
  *
  *	return false for success true for success
  */
@@ -1442,37 +2871,65 @@ PHP_FUNCTION(beanstalk_resumeTube)
 }
 
 /**
- * beanstalk_peekDelayed( $resource, $strTube = 'default')
+ * beanstalk_peekDelayed( $resource, $pStrTube = 'default')
  *
  * @param $resource
- * @param $strTube tube name
+ * @param $pStrTube tube name
  *
  * return false for error others for success
  */
-PHP_FUNCTION(beanstalk_peekDelayed)
+PHP_FUNCTION(beanstalk_peekDelayed2)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* pTube = "default";
+	char* pStrTube = "default";
 #if PHP_API_VERSION < 20151012
 	int
 #else
 	size_t
 #endif
-	tubeLen = 0;
+	iTubeLen = 0;
 	char* pWBuf = NULL;//COMMAND_PEEK_DELAYED CRLF;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|s", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
 		RETURN_FALSE;
 	}
 
-    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
-    {
-    	RETURN_FALSE;
-    }
 
-	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+
+	if( iTubeLen && strncmp( pStrTube, "default", sizeof( "default" ) - 1))
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
@@ -1487,26 +2944,26 @@ PHP_FUNCTION(beanstalk_peekDelayed)
 }
 
 /**
- * beanstalk_peekBuried( $resource, $strTube = "default" )
+ * beanstalk_peekDelayed( $resource, $pStrTube = 'default')
  *
  * @param $resource
- * @param $strTube tube name
+ * @param $pStrTube tube name
  *
  * return false for error others for success
  */
-PHP_FUNCTION(beanstalk_peekBuried)
+PHP_FUNCTION(beanstalk_peekDelayed)
 {
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* pTube = NULL;
+	char* pStrTube = "default";
 #if PHP_API_VERSION < 20151012
 	int
 #else
 	size_t
 #endif
-	tubeLen = 0;
-	char* pWBuf = NULL;
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pTube, &tubeLen ) == FAILURE) {
+	iTubeLen = 0;
+	char* pWBuf = NULL;//COMMAND_PEEK_DELAYED CRLF;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -1515,9 +2972,81 @@ PHP_FUNCTION(beanstalk_peekBuried)
     	RETURN_FALSE;
     }
 
-	if( tubeLen && strncmp( pTube, "default", sizeof( "default" ) - 1))
+	if( iTubeLen && strncmp( pStrTube, "default", sizeof( "default" ) - 1))
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pTube );
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			RETURN_FALSE;
+		}
+		efree( pWBuf );
+	}
+
+	spprintf( &pWBuf, 0, COMMAND_PEEK_DELAYED CRLF );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
+	efree( pWBuf );
+}
+
+/**
+ * beanstalk_peekBuried( $resource, $pStrTube = "default" )
+ *
+ * @param $resource
+ * @param $pStrTube tube name
+ *
+ * return false for error others for success
+ */
+PHP_FUNCTION(beanstalk_peekBuried2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+	char* pWBuf = NULL;
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+//    {
+//    	RETURN_FALSE;
+//    }
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|s", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+	if( iTubeLen && strncmp( pStrTube, "default", sizeof( "default" ) - 1))
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
 		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
 		{
 			efree( pWBuf );
@@ -1530,6 +3059,120 @@ PHP_FUNCTION(beanstalk_peekBuried)
 	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
 	efree( pWBuf );
 }
+
+/**
+ * beanstalk_peekBuried( $resource, $pStrTube = "default" )
+ *
+ * @param $resource
+ * @param $pStrTube tube name
+ *
+ * return false for error others for success
+ */
+PHP_FUNCTION(beanstalk_peekBuried)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+	char* pWBuf = NULL;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|s", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ) )
+    {
+    	RETURN_FALSE;
+    }
+
+	if( iTubeLen && strncmp( pStrTube, "default", sizeof( "default" ) - 1))
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
+		if( -1 == useTube( pStream, pWBuf, &return_value, TUBE_NOT_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			RETURN_FALSE;
+		}
+		efree( pWBuf );
+	}
+
+	spprintf( &pWBuf, 0, COMMAND_PEEK_BURIED CRLF );
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC );
+	efree( pWBuf );
+}
+
+
+/**
+ * beanstalk_touch( $resource, $jobID )
+ * @param resource $resource
+ * @param long	   $jobID
+ *
+ * return
+ * true for success
+ * false for the job does not exist or is not reserved by the client.
+ */
+PHP_FUNCTION(beanstalk_touch2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = 0;
+	char* pWBuf = NULL;//COMMAND_TOUCH CRLF;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol", &beanstalkObj, pBeanstalk, &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lJobID ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl", &zStream, &lJobID ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
+
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_TOUCH " %d" CRLF, lJobID );
+
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_TOUCHED TSRMLS_CC );
+
+		efree( pWBuf );
+	}
+	else
+	{
+		//for error
+		RETURN_FALSE;
+	}
+}
+
 
 /**
  * beanstalk_touch( $resource, $jobID )
@@ -1568,6 +3211,75 @@ PHP_FUNCTION(beanstalk_touch)
 		//for error
 		RETURN_FALSE;
 	}
+}
+
+/**
+ * beanstalk_release( $resource, $lJobID, $lPri = 1024, $lDelay = 0 )
+ *
+ * @param $resource
+ * @param $lJobID
+ * @param $lPri = 1024
+ * @param $lDelay = 0
+ *
+ * return false for error others for true
+ */
+PHP_FUNCTION(beanstalk_release2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lJobID = 0;
+	long lPri = 1024;
+	long lDelay = 0;
+	char* pWBuf = NULL;//COMMAND_TOUCH CRLF;
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rl|ll", &zStream, &lJobID, &lPri, &lDelay ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"Ol|ll", &beanstalkObj, pBeanstalk, &lJobID, &lPri, &lDelay ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|ll",&lJobID, &lPri, &lDelay ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+	if( lJobID )
+	{
+		spprintf( &pWBuf, 0, COMMAND_RELEASE " %d %d %d" CRLF, lJobID, lPri, lDelay );
+
+		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_RELEASED TSRMLS_CC );
+		efree( pWBuf );
+	}
+	else
+	{
+		//for error
+		RETURN_FALSE;
+	}
+
 }
 
 /**
@@ -1620,6 +3332,69 @@ PHP_FUNCTION(beanstalk_release)
  *
  * return array()
  */
+PHP_FUNCTION(beanstalk_reserve2)
+{
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	long lTimeOut = 0;
+	char* pWBuf = COMMAND_RESERVE CRLF;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|l", &beanstalkObj, pBeanstalk, &lTimeOut ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &lTimeOut ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|l", &zStream, &lTimeOut ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
+
+	if( lTimeOut <= 0 )//reserve
+	{
+		spprintf(&pWBuf, 0, COMMAND_RESERVE CRLF );
+	}
+	else
+	{
+		spprintf(&pWBuf, 0, COMMAND_RESERVE_WITH_TIMEOUT " %d" CRLF, lTimeOut );
+	}
+
+	getResponseComplexData( pStream, &return_value, pWBuf TSRMLS_CC);
+	efree( pWBuf );
+}
+
+/**
+ * beanstalk_reserve( $rid, $lTimeOut )
+ *
+ * @param	resource	$rid
+ * @param	long		$lTimeOut for seconds
+ *
+ * return array()
+ */
 PHP_FUNCTION(beanstalk_reserve)
 {
 	php_stream* pStream = NULL;
@@ -1653,20 +3428,19 @@ PHP_FUNCTION(beanstalk_reserve)
 //{
 //}
 
-
 /**
- * beanstalk_useTube( @resource, $strTube )
+ * beanstalk_useTube( @resource, $pStrTube )
  *
  * @param $resource
- * @param $strTube
+ * @param $pStrTube
  *
  * return false for error others for true
  */
-PHP_FUNCTION(beanstalk_useTube)
+PHP_FUNCTION(beanstalk_useTube2)
 {//
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* strTube = NULL;
+	char* pStrTube = NULL;
 #if PHP_API_VERSION < 20151012
 	int
 #else
@@ -1675,18 +3449,44 @@ PHP_FUNCTION(beanstalk_useTube)
 	iTubeLen = 0;
 	char* pWBuf = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &strTube, &iTubeLen ) == FAILURE) {
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|s", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|s", &pStrTube, &iTubeLen ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
 		RETURN_FALSE;
 	}
 
-    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
-    {
-        RETURN_FALSE;
-    }
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
 
 	if( iTubeLen > 0 )
 	{
-		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, strTube );
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
 
 		if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN TSRMLS_CC ))
 		{
@@ -1701,9 +3501,171 @@ PHP_FUNCTION(beanstalk_useTube)
 		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
 		RETURN_FALSE;
 	}
-
-
 }
+
+/**
+ * beanstalk_useTube( @resource, $pStrTube )
+ *
+ * @param $resource
+ * @param $pStrTube
+ *
+ * return false for error others for true
+ */
+PHP_FUNCTION(beanstalk_useTube)
+{//
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+	char* pWBuf = NULL;
+
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "rs", &zStream, &pStrTube, &iTubeLen ) == FAILURE) {
+		RETURN_FALSE;
+	}
+
+    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+    {
+        RETURN_FALSE;
+    }
+
+	if( iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_USE " %s" CRLF, pStrTube );
+
+		if( !useTube( pStream, pWBuf, &return_value, TUBE_RETURN TSRMLS_CC ))
+		{
+			efree( pWBuf );
+			return;
+		}
+
+		efree( pWBuf );
+	}
+	else
+	{
+		php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid param provided, check the params!");
+		RETURN_FALSE;
+	}
+}
+
+/**
+ * beanstalk_watch( $resource, $tube = 'default', $bReturnWatchSize = false )
+ *
+ * @param	resource	$resource
+ * @param	string		$tube
+ * @param	zend_bool   $bWatchSize
+ *
+ * return true or watchsize for success false for error
+ */
+PHP_FUNCTION(beanstalk_watch2)
+{//
+	php_stream* pStream = NULL;
+	zval* zStream = NULL;
+	char* pStrTube = NULL;
+	zend_bool bWatchSize = 0;
+#if PHP_API_VERSION < 20151012
+	int
+#else
+	size_t
+#endif
+	iTubeLen = 0;
+	char* pWBuf = NULL;
+
+	zval *beanstalkObj = getThis();
+	if ( beanstalkObj == NULL )
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O|sb", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen, &bWatchSize  ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+	else
+	{//oo
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|sb", &pStrTube, &iTubeLen, &bWatchSize  ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+
+			RETURN_FALSE;
+		}
+	}
+
+	if( getStream2( &pStream, beanstalkObj, INTERNAL_FUNCTION_PARAM_PASSTHRU TSRMLS_CC ) )
+	{
+		RETURN_FALSE;
+	}
+
+
+//	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|sl", &zStream, &pStrTube, &iTubeLen, &bWatchSize ) == FAILURE) {
+//		RETURN_FALSE;
+//	}
+//
+//    if( getStream( &pStream, zStream, &return_value TSRMLS_CC ))
+//    {
+//        RETURN_FALSE;
+//    }
+
+	if( iTubeLen > 0 )
+	{
+		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, pStrTube );
+	}
+	else
+	{
+		if( bWatchSize )
+		{
+			spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, "default" );
+		}
+		else
+		{
+			RETURN_TRUE;//by default watch default tube
+		}
+	}
+
+	int iRetry = 0;
+	do
+	{
+		if( !php_stream_write_string( pStream, pWBuf ))
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"network error occur!");
+			RETURN_FALSE;
+		}
+
+		size_t sRet;
+		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
+
+		if( !strncmp( pRes, RESPONSE_WATCHING, strlen( RESPONSE_WATCHING ) ))
+		{
+			if( bWatchSize )
+			{
+				RETVAL_LONG( atoi( pRes + strlen( RESPONSE_WATCHING ) + 1 ) );
+				efree( pRes );
+				efree( pWBuf );
+
+				return;
+			}
+			else
+			{
+				efree( pRes );
+				efree( pWBuf );
+
+				RETURN_TRUE;
+			}
+		}
+
+
+		efree( pRes );
+	}
+	while( ++iRetry < RETRY_TIMES );
+
+	efree( pWBuf );
+	RETURN_FALSE;
+};
 
 /**
  * beanstalk_watch( $resource, $tube = 'default', $bReturnWatchSize = false )
@@ -1718,7 +3680,7 @@ PHP_FUNCTION(beanstalk_watch)
 {//
 	php_stream* pStream = NULL;
 	zval* zStream = NULL;
-	char* strTube = NULL;
+	char* pStrTube = NULL;
 	long bWatchSize = 0;
 #if PHP_API_VERSION < 20151012
 	int
@@ -1728,7 +3690,7 @@ PHP_FUNCTION(beanstalk_watch)
 	iTubeLen = 0;
 	char* pWBuf = NULL;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|sl", &zStream, &strTube, &iTubeLen, &bWatchSize ) == FAILURE) {
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r|sl", &zStream, &pStrTube, &iTubeLen, &bWatchSize ) == FAILURE) {
 		RETURN_FALSE;
 	}
 
@@ -1739,7 +3701,7 @@ PHP_FUNCTION(beanstalk_watch)
 
 	if( iTubeLen > 0 )
 	{
-		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, strTube );
+		spprintf( &pWBuf, 0, COMMAND_WATCH " %s" CRLF, pStrTube );
 	}
 	else
 	{
@@ -1830,9 +3792,11 @@ PHP_MINIT_FUNCTION(beanstalk)
 	INIT_CLASS_ENTRY( ce, "Beanstalk", beanstalkMethods );
 	pBeanstalk = zend_register_internal_class( &ce TSRMLS_CC );
 
+	zend_declare_property_string( pBeanstalk, "host", strlen( "host" ), "127.0.0.1", ZEND_ACC_PUBLIC TSRMLS_CC );
+	zend_declare_property_long( pBeanstalk, "port", strlen( "port" ), 11300, ZEND_ACC_PUBLIC TSRMLS_CC );
+	//zend_declare_property( pBeanstalk, "connection", strlen( "connection" ), ZEND_ACC_PUBLIC TSRMLS_CC );
 
 	le_beanstalk = zend_register_list_destructors_ex( php_beanstalk_phpstream_dtor, NULL, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, module_number );
-
 
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_RETURN", TUBE_RETURN, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_TUBE_NOT_RETURN", TUBE_NOT_RETURN, CONST_CS | CONST_PERSISTENT);
@@ -1840,8 +3804,6 @@ PHP_MINIT_FUNCTION(beanstalk)
 	REGISTER_LONG_CONSTANT("BEANSTALK_WATCH_SIZE_NOT_RETURN", NOT_RETURN_WATCH_SIZE, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_ASK_SERVER", ASK_SERVER, CONST_CS | CONST_PERSISTENT);
 	REGISTER_LONG_CONSTANT("BEANSTALK_NOT_ASK_SERVER", NOT_ASK_SERVER, CONST_CS | CONST_PERSISTENT);
-
-
 
 	//BEANSTALK_G(gstream) = NULL;
 
@@ -2106,9 +4068,10 @@ static int useTube( php_stream *pStream, char* pCmd, zval** return_value, zend_b
  * Every user visible function must have an entry in beanstalk_functions[].
  */
 const zend_function_entry beanstalk_functions[] = {
-//	PHP_FE(confirm_beanstalk_compiled,	NULL)		/* For testing, remove later. */
-	PHP_FE(beanstalk_open,	NULL)
+	PHP_FE(beanstalk_connect,	NULL)
+	PHP_FE(beanstalk_connect2,	NULL)
 	PHP_FE(beanstalk_close,	NULL)
+	PHP_FE(beanstalk_close2,	NULL)
 	PHP_FE(beanstalk_put,	NULL)
 	PHP_FE(beanstalk_peekReady,	NULL)
 	PHP_FE(beanstalk_peek,	NULL)
@@ -2134,6 +4097,30 @@ const zend_function_entry beanstalk_functions[] = {
 	PHP_FE(beanstalk_touch, NULL)
 	PHP_FE(beanstalk_useTube, NULL)
 	PHP_FE(beanstalk_watch, NULL)
+	PHP_FE(beanstalk_peekReady2,	NULL)
+	PHP_FE(beanstalk_peek2,	NULL)
+	PHP_FE(beanstalk_delete2, NULL)
+	PHP_FE(beanstalk_stats2, NULL)
+	PHP_FE(beanstalk_bury2, NULL)
+	PHP_FE(beanstalk_ignore2, NULL)
+	PHP_FE(beanstalk_kick2, NULL)
+	PHP_FE(beanstalk_kickJob2, NULL)
+	PHP_FE(beanstalk_listTubes2, NULL)
+	PHP_FE(beanstalk_listTubesWatched2, NULL)
+	PHP_FE(beanstalk_listTubeUsed2, NULL)
+	PHP_FE(beanstalk_pauseTube2, NULL)
+	PHP_FE(beanstalk_resumeTube2, NULL)
+	PHP_FE(beanstalk_peekDelayed2, NULL)
+	PHP_FE(beanstalk_peekBuried2, NULL)
+	PHP_FE(beanstalk_putInTube2, NULL)
+	PHP_FE(beanstalk_release2, NULL)
+	PHP_FE(beanstalk_reserve2, NULL)
+	//PHP_FE(beanstalk_reserveFromTube, NULL)
+	PHP_FE(beanstalk_statsJob2, NULL)
+	PHP_FE(beanstalk_statsTube2, NULL)
+	PHP_FE(beanstalk_touch2, NULL)
+	PHP_FE(beanstalk_useTube2, NULL)
+	PHP_FE(beanstalk_watch2, NULL)
 	//PHP_FE(beanstalk_watchOnly, NULL)
 	PHP_FE_END	/* Must be the last line in beanstalk_functions[] */
 };
