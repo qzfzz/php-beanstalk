@@ -8,51 +8,51 @@ define( 'BEANSTALK_ASK_SERVER', 1 );
 define( 'BEANSTALK_NOT_ASK_SERVER', 0 );
 
 /**
- * beanstalk_close( $resource )
+ * beanstalk_close( $beanstalkObj )
  *
- * @param resource $resource
+ * @param resource $beanstalkObj
  *
  * return true for success false for failure
  */
-function beanstalk_close( $resource );
+function beanstalk_close( $beanstalkObj );
 
 /**
- * beanstalk_open( $host = '127.0.0.1', $port = 11300 )
+ * beanstalk_connect( $host = '127.0.0.1', $port = 11300 )
  * @param $host
  * @param $port
  *
  * return source id for success false for failure
  */
-function beanstalk_open( $host = '127.0.0.1', $port = 11300 );
+function beanstalk_connect( $host = '127.0.0.1', $port = 11300 );
 
 /**
- * beanstalk_peek( $resource, $lJobID )
- * @param $resource		resource id
+ * beanstalk_peek( $beanstalkObj, $lJobID )
+ * @param $beanstalkObj		resource id
  * @param $lJodID		job id
  *
  * return false for error string data for success
  */
-function beanstalk_peek( $resource, $lJobID );
+function beanstalk_peek( $beanstalkObj, $lJobID );
 
 
 /**
- * beanstalk_peek( $resource, $strTube = 'default' )
- * @param $resource		resource id
+ * beanstalk_peek( $beanstalkObj, $strTube = 'default' )
+ * @param $beanstalkObj		resource id
  * @param $strTube		tube name
  *
  * return array data for success others for failure
  */
-function beanstalk_peekReady( $resource, $strTube = 'default' );
+function beanstalk_peekReady( $beanstalkObj, $strTube = 'default' );
 
 /**
- * beanstalk_delete( $resource, $jobID )
- * @param $resource
+ * beanstalk_delete( $beanstalkObj, $jobID )
+ * @param $beanstalkObj
  * @param $jobID
  *
  * return true for success false for failue
  * delete jobid\r\n
  */
-function beanstalk_delete( $resource, $jobID );
+function beanstalk_delete( $beanstalkObj, $jobID );
 
 /**
  * beanstalk_put( $beanstalkResource, $strMsg, $iPri = 1024, $iDelay = 0, $iTtr = 60 )
@@ -69,7 +69,7 @@ function beanstalk_put( $beanstalkResource, $strMsg, $iPri = 1024, $iDelay = 0, 
 
 
 /**
- * beanstalk_putInTube( $resource, $strTube, $strMsg, $lPri, $lDelay, $lTtr )
+ * beanstalk_putInTube( $beanstalkObj, $strTube, $strMsg, $lPri, $lDelay, $lTtr )
  *
  * @param resource	$id;
  * @param string 	$tube;
@@ -80,170 +80,170 @@ function beanstalk_put( $beanstalkResource, $strMsg, $iPri = 1024, $iDelay = 0, 
  *
  * return job id or false for error
  */
-function beanstalk_putInTube( $resource, $strTube, $strMsg, $lPri, $lDelay, $lTtr );
+function beanstalk_putInTube( $beanstalkObj, $strTube, $strMsg, $lPri, $lDelay, $lTtr );
 
 
 /**
- * beanstalk_status( $resource )
- * @param $resource
+ * beanstalk_status( $beanstalkObj )
+ * @param $beanstalkObj
  *
  * return stats array
  */
-function beanstalk_stats( $resource );
+function beanstalk_stats( $beanstalkObj );
 
 /**
- * beanstalk_statsJob( $resource, $lJobID )
+ * beanstalk_statsJob( $beanstalkObj, $lJobID )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $lJobID
  *
  * return false for failure job's status array
  */
-function beanstalk_statsJob( $resource, $lJobID );
+function beanstalk_statsJob( $beanstalkObj, $lJobID );
 
 /**
- * beanstalk_statsTube( $resource, $strTube )
+ * beanstalk_statsTube( $beanstalkObj, $strTube )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $strTube tube name
  *
  * return tube's status array for success false for failure
  */
-function beanstalk_statsTube( $resource, $strTube );
+function beanstalk_statsTube( $beanstalkObj, $strTube );
 
 /**
- * beanstalk_bury( $resource, $lJobID, $lPri = 1024 )
+ * beanstalk_bury( $beanstalkObj, $lJobID, $lPri = 1024 )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $lJobID
  * @param $lPri = 1024
  *
  * return false for failure true for success
  */
-function beanstalk_bury( $resource, $lJobID, $lPri = 1024 );
+function beanstalk_bury( $beanstalkObj, $lJobID, $lPri = 1024 );
 
 
 /**
- * beanstalk_ignore( $resource, $strTube )
+ * beanstalk_ignore( $beanstalkObj, $strTube )
  *
- * @param resource	$resource
+ * @param resource	$beanstalkObj
  * @param string	$strTube
  *
  * return:
  * integers for watched size
  * false for error
  */
-function beanstalk_ignore( $resource, $strTube );
+function beanstalk_ignore( $beanstalkObj, $strTube );
 
 
 /**
- * beanstalk_kick( $resource, $max = 30 )
+ * beanstalk_kick( $beanstalkObj, $max = 30 )
  *
- * @param	resource	$resource
+ * @param	resource	$beanstalkObj
  * @param 	int			$max
  *
  * return false for error others for kicked jobs
  */
-function beanstalk_kick( $resource, $max = 30 );
+function beanstalk_kick( $beanstalkObj, $max = 30 );
 
 /**
- * beanstalk_kickJob( $resource, $iJobID )
+ * beanstalk_kickJob( $beanstalkObj, $iJobID )
  *
- * @param	resource	$resource
+ * @param	resource	$beanstalkObj
  * @param	int			$iJobID
  *
  * return true for success false for error or not found etc.
  */
-function beanstalk_kickJob( $resource, $iJobID );
+function beanstalk_kickJob( $beanstalkObj, $iJobID );
 
 /**
- * beanstalk_listTubes( $resource )
- * @param $resource
+ * beanstalk_listTubes( $beanstalkObj )
+ * @param $beanstalkObj
  *
  * return array for success false for failure
  */
-function beanstalk_listTubes( $resource );
+function beanstalk_listTubes( $beanstalkObj );
 
 /**
- * beanstalk_listTubes( $resource )
- * @param $resource
+ * beanstalk_listTubes( $beanstalkObj )
+ * @param $beanstalkObj
  *
  * return array for success false for failure
  */
-function beanstalk_listTubesWatched( $resource );
+function beanstalk_listTubesWatched( $beanstalkObj );
 
 /**
- * beanstalk_listTubeUsed( $resource, $bAskServer = false )
- * @param $resource
+ * beanstalk_listTubeUsed( $beanstalkObj, $bAskServer = false )
+ * @param $beanstalkObj
  * @param $bAskServer
  *
  * return string or true for success others for failure
  */
-function beanstalk_listTubeUsed(  $resource, $bAskServer = false  );
+function beanstalk_listTubeUsed(  $beanstalkObj, $bAskServer = false  );
 
 /**
- * beanstalk_pauseTube( $resource, $strTube, $lDelay )
+ * beanstalk_pauseTube( $beanstalkObj, $strTube, $lDelay )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $strTube tube name
  * @param $lDelay delay for pause
  *
  * return false for failure true for success
  */
-function beanstalk_pauseTube( $resource, $strTube, $lDelay );
+function beanstalk_pauseTube( $beanstalkObj, $strTube, $lDelay );
 
 /**
- *	beanstalk_resumeTube( $resource, $strTube )
+ *	beanstalk_resumeTube( $beanstalkObj, $strTube )
  *
- *	@param $resource
+ *	@param $beanstalkObj
  *	@param $strTube tube name
  *
  *	return false for success true for success
  */
-function beanstalk_resumeTube( $resource, $strTube );
+function beanstalk_resumeTube( $beanstalkObj, $strTube );
 
 /**
- * beanstalk_peekDelayed( $resource, $strTube = 'default')
+ * beanstalk_peekDelayed( $beanstalkObj, $strTube = 'default')
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $strTube tube name
  *
  * return false for error others for success
  */
-function beanstalk_peekDelayed( $resource, $strTube = 'default' );
+function beanstalk_peekDelayed( $beanstalkObj, $strTube = 'default' );
 
 /**
- * beanstalk_peekBuried( $resource, $strTube = "default" )
+ * beanstalk_peekBuried( $beanstalkObj, $strTube = "default" )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $strTube tube name
  *
  * return false for error others for success
  */
-function beanstalk_peekBuried( $resource, $strTube = "default" );
+function beanstalk_peekBuried( $beanstalkObj, $strTube = "default" );
 
 /**
- * beanstalk_touch( $resource, $jobID )
- * @param resource $resource
+ * beanstalk_touch( $beanstalkObj, $jobID )
+ * @param resource $beanstalkObj
  * @param long	   $jobID
  *
  * return
  * true for success
  * false for the job does not exist or is not reserved by the client.
  */
-function beanstalk_touch( $resource, $jobID );
+function beanstalk_touch( $beanstalkObj, $jobID );
 
 /**
- * beanstalk_release( $resource, $lJobID, $lPri = 1024, $lDelay = 0 )
+ * beanstalk_release( $beanstalkObj, $lJobID, $lPri = 1024, $lDelay = 0 )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $lJobID
  * @param $lPri = 1024
  * @param $lDelay = 0
  *
  * return false for error others for true
  */
-function beanstalk_release( $resource, $lJobID, $lPri = 1024, $lDelay = 0 );
+function beanstalk_release( $beanstalkObj, $lJobID, $lPri = 1024, $lDelay = 0 );
 
 /**
  * beanstalk_reserve( $rid, $lTimeOut )
@@ -253,7 +253,7 @@ function beanstalk_release( $resource, $lJobID, $lPri = 1024, $lDelay = 0 );
  *
  * return array()
  */
-function beanstalk_reserve( $resource, $lTimeOut );
+function beanstalk_reserve( $beanstalkObj, $lTimeOut );
 
 
 //function beanstalk_reserveFromTube)
@@ -262,30 +262,86 @@ function beanstalk_reserve( $resource, $lTimeOut );
 
 
 /**
- * beanstalk_useTube( $resource, $strTube )
+ * beanstalk_useTube( $beanstalkObj, $strTube )
  *
- * @param $resource
+ * @param $beanstalkObj
  * @param $strTube
  *
  * return false for error others for true
  */
-function beanstalk_useTube( $resource, $strTube );
+function beanstalk_useTube( $beanstalkObj, $strTube );
 
 
 /**
- * beanstalk_watch( $resource, $tube = 'default', $bWatchSize = false )
+ * beanstalk_watch( $beanstalkObj, $tube = 'default', $bWatchSize = false )
  *
- * @param	resource	$resource
+ * @param	resource	$beanstalkObj
  * @param	string		$tube
  * @param	bool		$bWatchSize
  *
  * return true or watchsize for success false for error
- *
- * BEANSTALK_WATCH_SIZE_RETURN
- * BEANSTALK_WATCH_SIZE_NOT_RETURN
  */
-function beanstalk_watch( $resource, $tube = 'default', $lRet = BEANSTALK_WATCH_SIZE_NOT_RETURN);
+function beanstalk_watch( $beanstalkObj, $tube = 'default', $bWatchSize = false);
 
+/**
+ * oo version of beanstalk's php client
+ */
+class Beanstalk
+{
+	public function connect( $host = '127.0.0.1', $port = 11300 ){}
+	
+	public function close(){}
+	
+	public function put( $strMsg, $iPri = 1024, $iDelay = 0, $iTtr = 60 ){}
+	
+	public function peek( $lJobID ){}
+	
+	public function peekReady( $strTube = 'default' ){}
+	
+	public function delete( $jobID ){}
+	
+	public function stats(){}
+	
+	public function bury( $lJobID, $lPri = 1024 ){}
+	
+	public function ignore( $strTube ){}
+	
+	public function kick( $max = 30 ){}
+	
+	public function kickJob( $iJobID ){}
+	
+	public function listTubes(){}
+	
+	public function listTubesWatched(){}
+	
+	public function listTubeUsed( $bAskServer = false ){}
+	
+	public function pauseTube( $strTube, $lDelay ){}
+	
+	public function resumeTube( $strTube ){}
+	
+	public function peekDelayed( $strTube = 'default' ){}
+	
+	public function peekBuried( $strTube = "default" ){}
+	
+	public function putInTube( $strTube, $strMsg, $lPri, $lDelay, $lTtr ){}
+	
+	public function release( $lJobID, $lPri = 1024, $lDelay = 0 ){}
+	
+	public function reserve( $lTimeOut ){}
+	
+	//public function beanstalk_reserveFromTube, NULL)
+	
+	public function statsJob( $lJobID ){}
+	
+	public function statsTube( $strTube ){}
+	
+	public function touch( $jobID ){}
+	
+	public function useTube( $strTube ){}
+	
+	public function watch( $tube = 'default', $bRetWatchSize = false ){}
+}
 /*
 $br = (php_sapi_name() == "cli")? "":"<br>";
 

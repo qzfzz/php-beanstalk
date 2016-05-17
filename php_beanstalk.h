@@ -24,8 +24,8 @@
 extern zend_module_entry beanstalk_module_entry;
 #define phpext_beanstalk_ptr &beanstalk_module_entry
 
-#define PHP_BEANSTALK_VERSION "0.1.0" /* Replace with version number for your extension */
-#define SUPPORTED_PHP_VERSION "php5"
+#define PHP_BEANSTALK_VERSION "0.1.1" /* Replace with version number for your extension */
+#define SUPPORTED_PHP_VERSION "php5 and php7"
 
 #ifdef PHP_WIN32
 #	define PHP_BEANSTALK_API __declspec(dllexport)
@@ -65,35 +65,34 @@ PHP_RINIT_FUNCTION(beanstalk);
 PHP_RSHUTDOWN_FUNCTION(beanstalk);
 PHP_MINFO_FUNCTION(beanstalk);
 //PHP_METHOD(Beanstalk,__construct);
-PHP_METHOD(Beanstalk,connect);
-PHP_FUNCTION(beanstalk_connect2);
-PHP_FUNCTION(beanstalk_close2);
-PHP_FUNCTION(beanstalk_put2);
-PHP_FUNCTION(beanstalk_close2);
-PHP_FUNCTION(beanstalk_peekReady2);
-PHP_FUNCTION(beanstalk_peek2);
-PHP_FUNCTION(beanstalk_delete2);
-PHP_FUNCTION(beanstalk_stats2);
-PHP_FUNCTION(beanstalk_bury2);
-PHP_FUNCTION(beanstalk_ignore2);
-PHP_FUNCTION(beanstalk_kick2);
-PHP_FUNCTION(beanstalk_kickJob2);
-PHP_FUNCTION(beanstalk_listTubes2);
-PHP_FUNCTION(beanstalk_listTubesWatched2);
-PHP_FUNCTION(beanstalk_listTubeUsed2);
-PHP_FUNCTION(beanstalk_pauseTube2);
-PHP_FUNCTION(beanstalk_resumeTube2);
-PHP_FUNCTION(beanstalk_peekDelayed2);
-PHP_FUNCTION(beanstalk_peekBuried2);
-PHP_FUNCTION(beanstalk_putInTube2);
-PHP_FUNCTION(beanstalk_release2);
-PHP_FUNCTION(beanstalk_reserve2);
+PHP_FUNCTION(beanstalk_connect);
+PHP_FUNCTION(beanstalk_close);
+PHP_FUNCTION(beanstalk_put);
+PHP_FUNCTION(beanstalk_close);
+PHP_FUNCTION(beanstalk_peekReady);
+PHP_FUNCTION(beanstalk_peek);
+PHP_FUNCTION(beanstalk_delete);
+PHP_FUNCTION(beanstalk_stats);
+PHP_FUNCTION(beanstalk_bury);
+PHP_FUNCTION(beanstalk_ignore);
+PHP_FUNCTION(beanstalk_kick);
+PHP_FUNCTION(beanstalk_kickJob);
+PHP_FUNCTION(beanstalk_listTubes);
+PHP_FUNCTION(beanstalk_listTubesWatched);
+PHP_FUNCTION(beanstalk_listTubeUsed);
+PHP_FUNCTION(beanstalk_pauseTube);
+PHP_FUNCTION(beanstalk_resumeTube);
+PHP_FUNCTION(beanstalk_peekDelayed);
+PHP_FUNCTION(beanstalk_peekBuried);
+PHP_FUNCTION(beanstalk_putInTube);
+PHP_FUNCTION(beanstalk_release);
+PHP_FUNCTION(beanstalk_reserve);
 //PHP_FUNCTION(beanstalk_reserveFromTube);
-PHP_FUNCTION(beanstalk_statsJob2);
-PHP_FUNCTION(beanstalk_statsTube2);
-PHP_FUNCTION(beanstalk_touch2);
-PHP_FUNCTION(beanstalk_useTube2);
-PHP_FUNCTION(beanstalk_watch2);
+PHP_FUNCTION(beanstalk_statsJob);
+PHP_FUNCTION(beanstalk_statsTube);
+PHP_FUNCTION(beanstalk_touch);
+PHP_FUNCTION(beanstalk_useTube);
+PHP_FUNCTION(beanstalk_watch);
 
 
 #ifdef ZTS
