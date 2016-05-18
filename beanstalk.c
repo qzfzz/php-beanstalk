@@ -330,10 +330,6 @@ PHP_FUNCTION(beanstalk_connect)
 }
 
 
-
-
-
-
 /**
  * beanstalk_close( $resource )
  *
@@ -347,17 +343,13 @@ PHP_FUNCTION(beanstalk_close)
 	zval *beanstalkObj = getThis();
 
 	if ( beanstalkObj == NULL )
-	{
-		zval *beanstalkObj = getThis();
-		if ( beanstalkObj == NULL )
-		{//po
-			if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
-					"O", &beanstalkObj, pBeanstalk ) == FAILURE)
-			{
-				php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
+	{//po
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"O", &beanstalkObj, pBeanstalk ) == FAILURE)
+		{
+			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
 
-				RETURN_FALSE;
-			}
+			RETURN_FALSE;
 		}
 	}
 
@@ -670,7 +662,7 @@ PHP_FUNCTION(beanstalk_delete)
 PHP_FUNCTION(beanstalk_put)
 {
 	php_stream* pStream = NULL;
-	char* pStr = NULL;
+	char* pMsgStr = NULL;
 #if PHP_API_VERSION < 20151012
 	int
 #else
@@ -690,7 +682,7 @@ PHP_FUNCTION(beanstalk_put)
 				"Os|lll",
 				&beanstalkObj,
 				pBeanstalk,
-				&pStr,
+				&pMsgStr,
 				&msgLen,
 				&iPri,
 				&iDelay,
@@ -703,7 +695,13 @@ PHP_FUNCTION(beanstalk_put)
 	}
 	else
 	{//oo
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s|lll", &pStr, &msgLen ) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
+				"s|lll",
+				&pMsgStr,
+				&msgLen,
+				&iPri,
+				&iDelay,
+				&iTtr ) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
 
@@ -718,7 +716,7 @@ PHP_FUNCTION(beanstalk_put)
 
 	if( msgLen )
 	{
-		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pStr );
+		spprintf(&pWBuf, 0, "put %d %d %d %d" CRLF "%s" CRLF, iPri, iDelay, iTtr, msgLen, pMsgStr );
 		getResponseIntData( pStream, &return_value, pWBuf, RESPONSE_INT_DATA_INSERTED TSRMLS_CC );
 		efree( pWBuf );
 	}
@@ -2538,8 +2536,10 @@ static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTIO
 	zval *resource;
 
 #if PHP_API_VERSION < 20151012
+
 	zend_class_entry *ceBeanstalk = Z_OBJCE_P( beanstalkObj );
-	resource = zend_read_property( ceBeanstalk, beanstalkObj, "connection", sizeof( "connection" ) - 1, 0 TSRMLS_CC );
+
+	resource = zend_read_property( ceBeanstalk, beanstalkObj, ZEND_STRL( "connection" ), 0 TSRMLS_CC );
 #else
 	resource = zend_read_property( pBeanstalk, beanstalkObj, ZEND_STRL( "connection" ), 0, NULL);
 #endif
