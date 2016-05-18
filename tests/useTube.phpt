@@ -8,12 +8,13 @@ $arrConfig = include __DIR__ . '/../include/config.inc';
 
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
-beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+$jobID = beanstalk_putInTube( $b, 'test-tube-a', 'test' );
 var_dump( beanstalk_useTube( $b, 'test-tube-a' ));
 
 $b->putInTube( 'test-tube-a', 'test' );
 var_dump( $b->useTube( 'test-tube-a' ));
 
+beanstalk_delete( $b, $jobID );
 beanstalk_close( $b );
 
 /*

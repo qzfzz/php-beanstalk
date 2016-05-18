@@ -7,6 +7,7 @@ Check for beanstalk listTubes listTubesWatched listTubeUsed
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
+$jobID = beanstalk_putInTube( $b, 'tubea', 'message1' );
 $strRet = var_export( beanstalk_listTubes( $b ), true );
 var_dump( preg_match( "/array/", $strRet ));
 $strRet = var_export( beanstalk_listTubesWatched( $b ), true );
@@ -19,6 +20,7 @@ $strRet = var_export( $b->listTubesWatched(), true );
 var_dump( preg_match( "/array/", $strRet ));
 var_dump($b->listTubeUsed());
 
+beanstalk_delete( $b, $jobID );
 beanstalk_close( $b );
 
 /*

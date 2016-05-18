@@ -6,7 +6,7 @@ Check for reserve
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
-beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+$jobID = beanstalk_putInTube( $b, 'test-tube-a', 'test' );
 
 var_dump( beanstalk_pauseTube( $b, 'test-tube-a', 100 ));
 var_dump( beanstalk_resumeTube( $b, 'test-tube-a' ));
@@ -14,6 +14,7 @@ var_dump( beanstalk_resumeTube( $b, 'test-tube-a' ));
 var_dump( $b->pauseTube( 'test-tube-a', 100 ));
 var_dump( $b->resumeTube( 'test-tube-a' ));
 
+beanstalk_delete( $b, $jobID );
 beanstalk_close( $b );
 
 

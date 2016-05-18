@@ -7,7 +7,7 @@ Check for watch() and ignore()
 $arrConfig = include __DIR__ . '/../include/config.inc';
 
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
-beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+$jobID = beanstalk_putInTube( $b, 'test-tube-a', 'test' );
 var_dump( beanstalk_watch( $b, 'test-tube-a' ));
 var_dump( beanstalk_watch( $b, 'test-tube-a', true ));
 var_dump( beanstalk_ignore( $b, 'test-tube-a' ));
@@ -15,6 +15,7 @@ var_dump( beanstalk_ignore( $b, 'test-tube-a' ));
 var_dump( $b->watch( 'test-tube-a' ));
 var_dump( $b->watch( 'test-tube-a', true ));
 var_dump( $b->ignore( 'test-tube-a' ));
+beanstalk_delete( $b, $jobID );
 
 beanstalk_close( $b );
 

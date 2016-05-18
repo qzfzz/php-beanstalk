@@ -6,12 +6,12 @@ Check for reserve
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
+$jobID = beanstalk_put( $b, 'msg2' );
 $job = beanstalk_reserve( $b );
 $strData = var_export( $job, true );
 var_dump( preg_match( "/array/", $strData ));
-
 var_dump( beanstalk_release( $b, $job['id'] ));
-
+beanstalk_delete( $b, $jobID );
 beanstalk_close( $b );
 
 

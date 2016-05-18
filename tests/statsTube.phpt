@@ -8,7 +8,7 @@ $arrConfig = include __DIR__ . '/../include/config.inc';
 
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
-beanstalk_putInTube( $b, 'test-tube-a', 'test' );
+$jobID = beanstalk_putInTube( $b, 'test-tube-a', 'test' );
 
 $strStats = var_export( beanstalk_statsTube( $b, 'test-tube-a' ), true );
 var_dump( preg_match( "/array/", $strStats ));
@@ -16,6 +16,7 @@ var_dump( preg_match( "/array/", $strStats ));
 $strStats = var_export( $b->statsTube( 'test-tube-a' ), true );
 var_dump( preg_match( "/array/", $strStats ));
 
+beanstalk_delete( $b, $jobID );
 beanstalk_close( $b );
 /*
 	you can add regression tests for your extension here

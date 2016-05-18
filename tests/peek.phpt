@@ -13,6 +13,7 @@ $strPeek = var_export( beanstalk_peek( $b, $lJobID ), true );
 var_dump( preg_match( "/array/", $strPeek ));
 $strPeek = var_export( beanstalk_peekReady( $b ), true );
 var_dump( preg_match( "/array/", $strPeek ));
+beanstalk_delete( $b, $lJobID );
 //beanstalk_close( $b );
 
 //oo
@@ -21,6 +22,8 @@ $strPeek = var_export( $b->peek( $lJobID ), true );
 var_dump( preg_match( "/array/", $strPeek ));
 $strPeek = var_export( $b->peekReady(), true );
 var_dump( preg_match( "/array/", $strPeek ));
+beanstalk_delete( $b, $lJobID );
+
 beanstalk_close( $b );
 
 /*

@@ -292,6 +292,7 @@ PHP_FUNCTION(beanstalk_connect)
 	    efree(errstr);
 	}
 
+    efree( transport );
 	if( !pStream )
 	{
 		RETURN_FALSE;
@@ -1459,7 +1460,6 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 			}
 
 			memset( pRet + sRet, '\0', CRLF_LEN );
-
 			if( iLen > 0 )
 			{
 				array_init( *return_value );
@@ -1485,19 +1485,29 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 #else
 					add_next_index_stringl( *return_value, token + 2, strlen( token ) - 2 );
 #endif
-					token = strtok( NULL, CRLF );
+                    token = strtok( NULL, CRLF );
 				}
 
 				efree( pRet );
+                pRet = NULL;
 			}
 
+            if( pRet )
+            {
+                efree( pRet );
+            }
+            efree( pResponse );
+            pResponse = NULL;
 			return 0;
 		}
 		++i;
 		token = strtok( NULL, COMMAND_SEPARATOR );
 	}
 
-	efree( pResponse );
+    if( pResponse )
+    {
+        efree( pResponse );    
+    }
 
 	ZVAL_FALSE( *return_value );
 
@@ -1605,7 +1615,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 	do
 	{
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
-	}while( ++iTry < 3 );
+	}while( iRet && ++iTry < 3 );
 
 	if( iRet )
 	{
