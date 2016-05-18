@@ -6,9 +6,12 @@ test for beanstalk open close
 <?php 
 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
-var_dump( $b );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 var_dump( beanstalk_close( $b ));
+$b = new Beanstalk();
+$b->connect( $arrConfig['host'], $arrConfig['port'] );
+var_dump( $b->close());
+
 /*
 	you can add regression tests for your extension here
 
@@ -23,5 +26,5 @@ done
 */
 ?>
 --EXPECTF--
-resource(%d) of type (stream)
+bool(true)
 bool(true)
