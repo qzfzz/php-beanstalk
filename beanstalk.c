@@ -296,16 +296,11 @@ PHP_FUNCTION(beanstalk_connect)
 
 //	BEANSTALK_G(gstream) = pStream;
 
-	zval* connection;
 
 #if PHP_API_VERSION < 20151012
+	zval* connection;
 	ALLOC_INIT_ZVAL(connection);
 	ZEND_REGISTER_RESOURCE(connection,pStream,le_beanstalk);
-#else
-//	RETURN_RES( zend_register_resource( pStream, le_beanstalk ));
-	ZVAL_RESOURCE(connection, zend_register_resource( pStream, le_beanstalk ) );
-#endif
-
 	if( !pB )
 	{
 		object_init_ex( return_value, pBeanstalk );
@@ -316,6 +311,22 @@ PHP_FUNCTION(beanstalk_connect)
 		add_property_zval( pB, "connection", connection );
 		RETURN_ZVAL( pB, 1, 0 );
 	}
+#else
+//	RETURN_RES( zend_register_resource( pStream, le_beanstalk ));
+	zval connection;
+	ZVAL_RES(&connection, zend_register_resource( pStream, le_beanstalk ) );
+	if( !pB )
+	{
+		object_init_ex( return_value, pBeanstalk );
+		add_property_zval( return_value, "connection", &connection );
+	}
+	else
+	{
+		add_property_zval( pB, "connection", &connection );
+		RETURN_ZVAL( pB, 1, 0 );
+	}
+#endif
+
 }
 
 
@@ -2526,8 +2537,12 @@ static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTIO
 {//INTERNAL_FUNCTION_PARAM_PASSTHRU
 	zval *resource;
 
-	zend_class_entry *ce = Z_OBJCE_P( beanstalkObj );
-	resource = zend_read_property( ce, beanstalkObj, "connection", sizeof( "connection" ) - 1, 0 TSRMLS_CC );
+#if PHP_API_VERSION < 20151012
+	zend_class_entry *ceBeanstalk = Z_OBJCE_P( beanstalkObj );
+	resource = zend_read_property( ceBeanstalk, beanstalkObj, "connection", sizeof( "connection" ) - 1, 0 TSRMLS_CC );
+#else
+	resource = zend_read_property( pBeanstalk, beanstalkObj, ZEND_STRL( "connection" ), 0, NULL);
+#endif
 
 	if( resource )
 	{
