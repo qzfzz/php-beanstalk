@@ -1,20 +1,21 @@
 --TEST--
-Check for useTube
+Check for reserve
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-
 $b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
-
 beanstalk_putInTube( $b, 'test-tube-a', 'test' );
-var_dump( beanstalk_useTube( $b, 'test-tube-a' ));
 
-$b->putInTube( 'test-tube-a', 'test' );
-var_dump( $b->useTube( 'test-tube-a' ));
+var_dump( beanstalk_pauseTube( $b, 'test-tube-a', 100 ));
+var_dump( beanstalk_resumeTube( $b, 'test-tube-a' ));
+
+var_dump( $b->pauseTube( 'test-tube-a', 100 ));
+var_dump( $b->resumeTube( 'test-tube-a' ));
 
 beanstalk_close( $b );
+
 
 /*
 	you can add regression tests for your extension here
@@ -30,5 +31,7 @@ done
 */
 ?>
 --EXPECTF--
-string(%d) "test-tube-a"
-string(%d) "test-tube-a"
+bool(true)
+bool(true)
+bool(true)
+bool(true)

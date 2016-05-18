@@ -119,6 +119,9 @@ ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
 
 #define RETRY_TIMES 5
 
+#define STR_CONNECTION "connection"
+
+
 
 /**
  * beanstalk resource
@@ -304,11 +307,11 @@ PHP_FUNCTION(beanstalk_connect)
 	if( !pB )
 	{
 		object_init_ex( return_value, pBeanstalk );
-		add_property_zval( return_value, "connection", connection );
+		add_property_zval( return_value, STR_CONNECTION, connection );
 	}
 	else
 	{
-		add_property_zval( pB, "connection", connection );
+		add_property_zval( pB, STR_CONNECTION, connection );
 		RETURN_ZVAL( pB, 1, 0 );
 	}
 #else
@@ -318,11 +321,11 @@ PHP_FUNCTION(beanstalk_connect)
 	if( !pB )
 	{
 		object_init_ex( return_value, pBeanstalk );
-		add_property_zval( return_value, "connection", &connection );
+		add_property_zval( return_value, STR_CONNECTION, &connection );
 	}
 	else
 	{
-		add_property_zval( pB, "connection", &connection );
+		add_property_zval( pB, STR_CONNECTION, &connection );
 		RETURN_ZVAL( pB, 1, 0 );
 	}
 #endif
@@ -968,7 +971,7 @@ PHP_FUNCTION(beanstalk_statsTube)
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
-				"Os", &beanstalkObj, pBeanstalk, &pStrTube ) == FAILURE)
+				"Os", &beanstalkObj, pBeanstalk, &pStrTube, &iTubeLen ) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
 
@@ -1309,7 +1312,7 @@ PHP_FUNCTION(beanstalk_kick)
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
-				"Ol", &beanstalkObj, pBeanstalk, &lMax ) == FAILURE)
+				"O|l", &beanstalkObj, pBeanstalk, &lMax ) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
 
@@ -1318,7 +1321,7 @@ PHP_FUNCTION(beanstalk_kick)
 	}
 	else
 	{//oo
-		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &lMax ) == FAILURE)
+		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|l", &lMax ) == FAILURE)
 		{
 			php_error_docref(NULL TSRMLS_CC, E_WARNING,"Invalid parameters");
 
@@ -2319,7 +2322,7 @@ PHP_MINIT_FUNCTION(beanstalk)
 
 	zend_declare_property_string( pBeanstalk, "host", strlen( "host" ), "127.0.0.1", ZEND_ACC_PUBLIC TSRMLS_CC );
 	zend_declare_property_long( pBeanstalk, "port", strlen( "port" ), 11300, ZEND_ACC_PUBLIC TSRMLS_CC );
-	//zend_declare_property( pBeanstalk, "connection", strlen( "connection" ), ZEND_ACC_PUBLIC TSRMLS_CC );
+	//zend_declare_property( pBeanstalk, ZEND_STRL( STR_CONNECTION ), ZEND_ACC_PUBLIC TSRMLS_CC );
 
 	le_beanstalk = zend_register_list_destructors_ex( php_beanstalk_phpstream_dtor, NULL, PHP_DESCRIPTOR_BEANSTALK_RES_NAME, module_number );
 
@@ -2539,9 +2542,9 @@ static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTIO
 
 	zend_class_entry *ceBeanstalk = Z_OBJCE_P( beanstalkObj );
 
-	resource = zend_read_property( ceBeanstalk, beanstalkObj, ZEND_STRL( "connection" ), 0 TSRMLS_CC );
+	resource = zend_read_property( ceBeanstalk, beanstalkObj, ZEND_STRL( STR_CONNECTION ), 0 TSRMLS_CC );
 #else
-	resource = zend_read_property( pBeanstalk, beanstalkObj, ZEND_STRL( "connection" ), 0, NULL);
+	resource = zend_read_property( pBeanstalk, beanstalkObj, ZEND_STRL( STR_CONNECTION ), 0, NULL);
 #endif
 
 	if( resource )

@@ -5,7 +5,7 @@ Check for reserve
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 $job = beanstalk_reserve( $b );
 $strData = var_export( $job, true );
 var_dump( preg_match( "/array/", $strData ));

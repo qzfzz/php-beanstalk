@@ -5,16 +5,26 @@ test for beanstalk put putInTube
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig[ 'host' ], $arrConfig[ 'port' ] );
-$lPut = beanstalk_put( $b, "hello this is a test" );
-$lPutInTube = beanstalk_putInTube( $b, 'tubea', "abc" );
-var_dump( $lPut );
-var_dump( $lPutInTube );
 
-var_dump( beanstalk_delete( $b, $lPut));
-var_dump( beanstalk_delete( $b, $lPutInTube ));
+$b = beanstalk_connect( $arrConfig[ 'host'  ], $arrConfig[ 'port'  ]  );
+$lPut = beanstalk_put( $b, "hello this is a test"  );
+$lPutInTube = beanstalk_putInTube( $b, 'tubea', "abc"  );
+var_dump( $lPut  );
+var_dump( $lPutInTube  );
+var_dump( beanstalk_delete( $b, $lPut ) );
+var_dump( beanstalk_delete( $b, $lPutInTube  ) );
+beanstalk_close( $b  );
 
-beanstalk_close( $b );
+$b = new Beanstalk();
+$b->connect( $arrConfig[ 'host'  ], $arrConfig[ 'port'  ]  );
+$lPut = $b->put( "hello this is a test"  );
+$lPutInTube = $b->putInTube( 'tubea', "abc"  );
+var_dump( $lPut  );
+var_dump( $lPutInTube  );
+var_dump( $b->delete( $lPut ) );
+var_dump( $b->delete( $lPutInTube  ) );
+$b->close( $b  );
+
 /*
 	you can add regression tests for your extension here
 
@@ -29,6 +39,10 @@ done
 */
 ?>
 --EXPECTF--
+int(%d)
+int(%d)
+bool(true)
+bool(true)
 int(%d)
 int(%d)
 bool(true)

@@ -5,16 +5,24 @@ test for beanstalk peek peekReady
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
+//op
 $lJobID = beanstalk_put( $b, "message" );
 $strPeek = var_export( beanstalk_peek( $b, $lJobID ), true );
 var_dump( preg_match( "/array/", $strPeek ));
-
-
 $strPeek = var_export( beanstalk_peekReady( $b ), true );
 var_dump( preg_match( "/array/", $strPeek ));
+//beanstalk_close( $b );
+
+//oo
+$lJobID = $b->put( "message" );
+$strPeek = var_export( $b->peek( $lJobID ), true );
+var_dump( preg_match( "/array/", $strPeek ));
+$strPeek = var_export( $b->peekReady(), true );
+var_dump( preg_match( "/array/", $strPeek ));
 beanstalk_close( $b );
+
 /*
 	you can add regression tests for your extension here
 
@@ -29,5 +37,7 @@ done    resource(%d) of type (stream)
 */
 ?>
 --EXPECTF--
+int(1)
+int(1)
 int(1)
 int(1)

@@ -1,13 +1,22 @@
 --TEST--
-Check for release
+Check for reserve
 --SKIPIF--
 <?php if (!extension_loaded("beanstalk")) print "skip"; ?>
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
+$job = beanstalk_reserve( $b );
+// $strData = var_export( $job, true );
+// var_dump( preg_match( "/array/", $strData ));
+
+var_dump( beanstalk_bury( $b, $job['id'] ) );
+var_dump( beanstalk_kickJob( $b, $job['id'] ) );
+
+var_dump( beanstalk_kick( $b, 30 ));
 
 beanstalk_close( $b );
+
 
 /*
 	you can add regression tests for your extension here
@@ -23,3 +32,6 @@ done
 */
 ?>
 --EXPECTF--
+bool(true)
+bool(true)
+int(%d)

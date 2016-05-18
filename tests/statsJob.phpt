@@ -5,11 +5,16 @@ Check for beanstalk presence
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
+beanstalk_put( $b, "message" );
 $job = beanstalk_peekReady( $b );
 $strStats = var_export( beanstalk_statsJob( $b, $job['id'] ), true );
 var_dump( preg_match( "/array/", $strStats ));
+
+$strStats = var_export( $b->statsJob( $job['id'] ), true );
+var_dump( preg_match( "/array/", $strStats ));
+
 beanstalk_close( $b );
 /*
 	you can add regression tests for your extension here
@@ -25,4 +30,5 @@ done
 */
 ?>
 --EXPECTF--
+int(1)
 int(1)

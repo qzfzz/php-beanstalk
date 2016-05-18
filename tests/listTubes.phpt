@@ -5,16 +5,20 @@ Check for beanstalk listTubes listTubesWatched listTubeUsed
 --FILE--
 <?php 
 $arrConfig = include __DIR__ . '/../include/config.inc';
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
+
 $strRet = var_export( beanstalk_listTubes( $b ), true );
 var_dump( preg_match( "/array/", $strRet ));
-
-
 $strRet = var_export( beanstalk_listTubesWatched( $b ), true );
 var_dump( preg_match( "/array/", $strRet ));
-
 var_dump(beanstalk_listTubeUsed( $b ));
-// var_dump( preg_match( "/array/", $strRet ));
+
+$strRet = var_export( $b->listTubes(), true );
+var_dump( preg_match( "/array/", $strRet ));
+$strRet = var_export( $b->listTubesWatched(), true );
+var_dump( preg_match( "/array/", $strRet ));
+var_dump($b->listTubeUsed());
+
 beanstalk_close( $b );
 
 /*
@@ -31,6 +35,9 @@ done
 */
 ?>
 --EXPECTF--
+int(1)
+int(1)
+string(%d) "%s"
 int(1)
 int(1)
 string(%d) "%s"
