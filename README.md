@@ -15,6 +15,8 @@ Installation：
 4.    $./configure
 5.    $make
 6.    $make install
+7.    after you install it, please configure the ip address of your beanstalkd server in beanstalk/include/config.inc
+8.    $make test
 ```
 
 compile passed：linux/unix/osx
