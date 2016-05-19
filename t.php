@@ -2,7 +2,7 @@
 $t = microtime( true );
 
 $arrConfig = include( __DIR__ . '/include/config.inc'); 
-$b = beanstalk_open( $arrConfig['host'], $arrConfig['port'] );
+$b = beanstalk_connect( $arrConfig['host'], $arrConfig['port'] );
 
 $lJobID = beanstalk_put( $b, "message" );
 $lJobID = beanstalk_put( $b, "message" );
