@@ -1,2 +1,2 @@
 <?php
-return array( 'host' => '192.168.1.115', 'port' => 11300 );
+return array( 'host' => '127.0.0.1', 'port' => 11300 );
