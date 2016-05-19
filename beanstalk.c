@@ -239,7 +239,7 @@ PHP_FUNCTION(beanstalk_connect)
 {
     char *host = "127.0.0.1", *transport, *errstr = NULL;
 	int host_len = sizeof( "127.0.0.1" ) - 1, transport_len, implicit_tcp = 1, errcode = 0;
-	zend_class_entry *pB = getThis();
+	zval *pB = getThis();
 
     int flags = STREAM_XPORT_CLIENT | STREAM_XPORT_CONNECT;
 	php_stream* pStream = NULL;
