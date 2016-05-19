@@ -309,10 +309,12 @@ PHP_FUNCTION(beanstalk_connect)
 	{
 		object_init_ex( return_value, pBeanstalk );
 		add_property_zval( return_value, STR_CONNECTION, connection );
+        Z_DELREF_P( connection );
 	}
 	else
 	{
 		add_property_zval( pB, STR_CONNECTION, connection );
+        Z_DELREF_P( connection );
 		RETURN_ZVAL( pB, 1, 0 );
 	}
 #else
