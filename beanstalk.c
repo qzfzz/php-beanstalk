@@ -34,8 +34,11 @@
 
 /* If you declare any globals in php_beanstalk.h uncomment this:
 ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
-*/
+
 ZEND_DECLARE_MODULE_GLOBALS(beanstalk)
+
+*/
+
 /* True global resources - no need for thread safety here */
 #define PHP_DESCRIPTOR_BEANSTALK_RES_NAME "stream"
 #define CRLF "\r\n"
@@ -247,9 +250,13 @@ PHP_FUNCTION(beanstalk_connect)
 #if PHP_API_VERSION < 20151012
 	int iHostLen = -1;
 	int options = ENFORCE_SAFE_MODE;
+	zval* connection;
+
 #else
 	size_t iHostLen = -1;
 	int options = 0;
+	zval connection;
+
 #endif
 
 	long lPort = 11300;//default 11300
@@ -302,7 +309,6 @@ PHP_FUNCTION(beanstalk_connect)
 
 
 #if PHP_API_VERSION < 20151012
-	zval* connection;
 	ALLOC_INIT_ZVAL(connection);
 	ZEND_REGISTER_RESOURCE(connection,pStream,le_beanstalk);
 	if( !pB )
@@ -319,7 +325,6 @@ PHP_FUNCTION(beanstalk_connect)
 	}
 #else
 //	RETURN_RES( zend_register_resource( pStream, le_beanstalk ));
-	zval connection;
 	ZVAL_RES(&connection, zend_register_resource( pStream, le_beanstalk ) );
 	if( !pB )
 	{
@@ -391,13 +396,6 @@ static void getResponseComplexData(
 										zval** return_value,
 										char* pCmd TSRMLS_DC )
 {
-	if( !php_stream_write_string( pStream, pCmd ))
-	{
-		ZVAL_FALSE( *return_value );
-
-		return;
-	}
-
 	char *pResponse = NULL;
 	char *pRet = NULL;
 	char *token;
@@ -405,6 +403,13 @@ static void getResponseComplexData(
 	int jobID;
 	int iLen = 0;
 	size_t sRet;
+
+	if( !php_stream_write_string( pStream, pCmd ))
+	{
+		ZVAL_FALSE( *return_value );
+
+		return;
+	}
 
 	if( pResponse = php_stream_gets( pStream, NULL, 0 ) )
 	{
@@ -826,8 +831,8 @@ PHP_FUNCTION(beanstalk_putInTube)
 PHP_FUNCTION(beanstalk_stats)
 {
 	php_stream* pStream = NULL;
-
 	char* pWBuf = COMMAND_STATS CRLF;
+	zval *beanstalkObj = getThis();
 
 #if PHP_API_VERSION < 20151012
 	if (!return_value_used)
@@ -842,7 +847,6 @@ PHP_FUNCTION(beanstalk_stats)
 	}
 #endif
 
-	zval *beanstalkObj = getThis();
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -877,8 +881,9 @@ PHP_FUNCTION(beanstalk_stats)
 PHP_FUNCTION(beanstalk_statsJob)
 {
 	php_stream* pStream = NULL;
-
 	long lJobID = -1;
+	zval *beanstalkObj = getThis();
+	char* pWBuf = NULL;
 
 #if PHP_API_VERSION < 20151012
 	if (!return_value_used)
@@ -893,7 +898,6 @@ PHP_FUNCTION(beanstalk_statsJob)
 	}
 #endif
 
-	zval *beanstalkObj = getThis();
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -922,7 +926,6 @@ PHP_FUNCTION(beanstalk_statsJob)
 
 	if( lJobID > 0 )
 	{
-		char* pWBuf = NULL;
 		spprintf( &pWBuf, 0, "%s %d" CRLF, COMMAND_STATS_JOB, lJobID );
 
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
@@ -948,8 +951,10 @@ PHP_FUNCTION(beanstalk_statsJob)
 PHP_FUNCTION(beanstalk_statsTube)
 {
 	php_stream* pStream = NULL;
-
+	zval *beanstalkObj = getThis();
 	char* pStrTube = NULL;
+	char* pWBuf = NULL;
+
 #if PHP_API_VERSION < 20151012
 	int
 #else
@@ -970,7 +975,6 @@ PHP_FUNCTION(beanstalk_statsTube)
 	}
 #endif
 
-	zval *beanstalkObj = getThis();
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -998,7 +1002,6 @@ PHP_FUNCTION(beanstalk_statsTube)
 
 	if( iTubeLen )
 	{
-		char* pWBuf = NULL;
 		spprintf( &pWBuf, 0, COMMAND_STATS_TUBE " %s" CRLF, pStrTube );
 
 		getStatsResponse( pStream, pWBuf, &return_value TSRMLS_CC );
@@ -1019,13 +1022,14 @@ PHP_FUNCTION(beanstalk_statsTube)
  */
 static void getResponseWithNoData( php_stream* pStream, zval** return_value, char* pCmd, int iResponseType TSRMLS_DC )
 {
+	char* pRet = NULL;
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
 		ZVAL_FALSE( *return_value );
 		return;
 	}
 
-	char* pRet = php_stream_gets( pStream, NULL, 0 );
+	pRet = php_stream_gets( pStream, NULL, 0 );
 
 	if( pRet )
 	{
@@ -1111,11 +1115,11 @@ static void getResponseWithNoData( php_stream* pStream, zval** return_value, cha
 PHP_FUNCTION(beanstalk_bury)
 {
 	php_stream* pStream = NULL;
-
+	char* pWBuf = NULL;
 	long lJobID = -1;
 	long lPri = 1024;
-
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1143,7 +1147,6 @@ PHP_FUNCTION(beanstalk_bury)
 
 	if( -1 != lJobID )
 	{
-		char* pWBuf = NULL;
 		spprintf( &pWBuf, 0, COMMAND_BURY " %d %d" CRLF, lJobID, lPri );
 		getResponseWithNoData( pStream, &return_value, pWBuf, RESPONSE_NO_DATA_BURIED TSRMLS_CC );
 		efree( pWBuf );
@@ -1180,8 +1183,8 @@ PHP_FUNCTION(beanstalk_ignore)
 #endif
 	iTubeLen = 0;
 	char* pWBuf = NULL;
-
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1247,7 +1250,7 @@ static void getResponseIntData( php_stream* pStream, zval** return_value, char* 
 			return;
 		}
 
-		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
+		pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
 
 		if( !strncmp( pRes, RESPONSE_WATCHING, strlen( RESPONSE_WATCHING ) ) ||
 				!strncmp( pRes, RESPONSE_KICKED, strlen( RESPONSE_KICKED ) ) ||
@@ -1312,6 +1315,7 @@ PHP_FUNCTION(beanstalk_kick)
 	char* pWBuf = NULL;
 
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1417,17 +1421,21 @@ PHP_FUNCTION(beanstalk_kickJob)
  */
 static int getListTubeResponse( php_stream* pStream, zval** return_value, char* pCmd TSRMLS_DC )
 {
+
+
+	size_t sRet = 0;
+	char* pResponse = NULL;
+	size_t iLen = 0;
+	char *pRet = NULL;
+	char *token = NULL;
+	int i = 0;
+
 	if( !php_stream_write_string( pStream, pCmd ))
 	{
 		return -1;
 	}
 
-	size_t sRet = 0;
-	char* pResponse = php_stream_get_line( pStream, NULL, 0, &sRet );
-	size_t iLen = 0;
-	char *pRet = NULL;
-	char *token = NULL;
-	int i = 0;
+	pResponse = php_stream_get_line( pStream, NULL, 0, &sRet );
 
 	if( pResponse && strncmp( pResponse, RESPONSE_OK, 2 ))
 	{
@@ -1526,8 +1534,10 @@ static int getListTubeResponse( php_stream* pStream, zval** return_value, char* 
 PHP_FUNCTION(beanstalk_listTubes)
 {
 	php_stream* pStream = NULL;
-
 	char* pWBuf = COMMAND_LIST_TUBES CRLF;
+	zval *beanstalkObj = getThis();
+	int iTry = 0;
+	int iRet = 0;
 
 #if PHP_API_VERSION < 20151012
 	if (!return_value_used)
@@ -1542,7 +1552,6 @@ PHP_FUNCTION(beanstalk_listTubes)
 	}
 #endif
 
-	zval *beanstalkObj = getThis();
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1559,8 +1568,6 @@ PHP_FUNCTION(beanstalk_listTubes)
 		RETURN_FALSE;
 	}
 
-	int iTry = 0;
-	int iRet = 0;
 	do
 	{
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
@@ -1578,8 +1585,10 @@ PHP_FUNCTION(beanstalk_listTubes)
 PHP_FUNCTION(beanstalk_listTubesWatched)
 {
 	php_stream* pStream = NULL;
-
+	zval *beanstalkObj = getThis();
 	char* pWBuf = COMMAND_LIST_TUBES_WATCHED CRLF;
+	int iTry = 0;
+	int iRet = 0;
 
 #if PHP_API_VERSION < 20151012
 	if (!return_value_used)
@@ -1595,7 +1604,7 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 	}
 #endif
 
-	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1612,8 +1621,6 @@ PHP_FUNCTION(beanstalk_listTubesWatched)
 		RETURN_FALSE;
 	}
 
-	int iTry = 0;
-	int iRet = 0;
 	do
 	{
 		iRet = getListTubeResponse( pStream, &return_value, pWBuf TSRMLS_CC );
@@ -1640,8 +1647,8 @@ PHP_FUNCTION(beanstalk_listTubeUsed)
 
 	zend_bool bAskServer = 0;
 	char* pWBuf = COMMAND_LIST_TUBE_USED CRLF;
-
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -1774,6 +1781,7 @@ PHP_FUNCTION(beanstalk_resumeTube)
 	size_t iTubeLen = -1;
 
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -2145,6 +2153,7 @@ PHP_FUNCTION(beanstalk_useTube)
 	char* pWBuf = NULL;
 
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -2211,8 +2220,11 @@ PHP_FUNCTION(beanstalk_watch)
 #endif
 	iTubeLen = 0;
 	char* pWBuf = NULL;
-
+	int iRetry = 0;
+	size_t sRet;
+	char* pRes = NULL;
 	zval *beanstalkObj = getThis();
+
 	if ( beanstalkObj == NULL )
 	{//po
 		if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC,
@@ -2254,7 +2266,7 @@ PHP_FUNCTION(beanstalk_watch)
 		}
 	}
 
-	int iRetry = 0;
+
 	do
 	{
 		if( !php_stream_write_string( pStream, pWBuf ))
@@ -2263,8 +2275,7 @@ PHP_FUNCTION(beanstalk_watch)
 			RETURN_FALSE;
 		}
 
-		size_t sRet;
-		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
+		 pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
 
 		if( !strncmp( pRes, RESPONSE_WATCHING, strlen( RESPONSE_WATCHING ) ))
 		{
@@ -2420,6 +2431,7 @@ static void getStatsResponse( php_stream* pStream, char* pCmd, zval** return_val
 	char *pPos;
 	int i = 0;
 	int iRetry = 0;
+	BSKeyVal bsKV;
 
 retry:
 
@@ -2478,7 +2490,6 @@ retry:
 
 			token = strtok( pRet, "\r\n" );
 			i = 0;
-			BSKeyVal bsKV;
 
 			while( token )
 			{
@@ -2551,9 +2562,7 @@ static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTIO
 	zval *resource;
 
 #if PHP_API_VERSION < 20151012
-
 	zend_class_entry *ceBeanstalk = Z_OBJCE_P( beanstalkObj );
-
 	resource = zend_read_property( ceBeanstalk, beanstalkObj, ZEND_STRL( STR_CONNECTION ), 0 TSRMLS_CC );
 #else
 	resource = zend_read_property( pBeanstalk, beanstalkObj, ZEND_STRL( STR_CONNECTION ), 0, NULL);
@@ -2592,6 +2601,8 @@ static int getStream( php_stream **pStream, zval *beanstalkObj, INTERNAL_FUNCTIO
 static int useTube( php_stream *pStream, char* pCmd, zval** return_value, zend_bool bList TSRMLS_DC )
 {
 	int i = 0;
+	size_t sRet = 0;
+	char* pRes = NULL;
 
 	do
 	{
@@ -2602,8 +2613,7 @@ static int useTube( php_stream *pStream, char* pCmd, zval** return_value, zend_b
 			return -1;
 		}
 
-		size_t sRet;
-		char* pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
+		pRes = php_stream_get_line( pStream, NULL, 0, &sRet );
 
 		if( !strncmp( pRes, RESPONSE_USING, strlen( RESPONSE_USING ) ))
 		{
