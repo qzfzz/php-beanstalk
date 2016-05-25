@@ -22,9 +22,9 @@
 #define PHP_BEANSTALK_H
 
 extern zend_module_entry beanstalk_module_entry;
-#define phpext_beanstalk_ptr &beanstalk_module_entry
+#define phpext_beanstalk_ptr &beans3alk_module_entry
 
-#define PHP_BEANSTALK_VERSION "0.1.1" /* Replace with version number for your extension */
+#define PHP_BEANSTALK_VERSION "0.1.3" /* Replace with version number for your extension */
 #define SUPPORTED_PHP_VERSION "php5 and php7"
 
 #ifdef PHP_WIN32
