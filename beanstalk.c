@@ -370,15 +370,15 @@ PHP_FUNCTION(beanstalk_close)
 	}
 
 	#if PHP_API_VERSION < 20151012
-		//php_stream_close( pStream );
-		zend_list_delete(Z_RESVAL_P(beanstalkObj));
+		php_stream_close( pStream );
+		//zend_list_delete(Z_RESVAL_P(beanstalkObj));
 	#else
-//		if( !pStream )
-//		{
-//			RETURN_FALSE;
-//		}
-		//php_stream_close( pStream  );
-		zend_list_close(Z_RES_P(beanstalkObj));
+		if( !pStream )
+		{
+			RETURN_FALSE;
+		}
+		php_stream_close( pStream  );
+		//zend_list_close(Z_RES_P(beanstalkObj));
 
 	#endif
 
